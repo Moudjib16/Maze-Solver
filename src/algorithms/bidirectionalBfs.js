@@ -1,15 +1,18 @@
+import { getNeighbors, key, validateMaze } from "./common.js";
+
 // Bidirectional BFS — searches from start AND goal simultaneously,
 // meeting in the middle. Optimal on unweighted mazes, usually explores
 // far fewer tiles than plain BFS.
 export function solveMazeBidirectionalBFS(maze, start, goal) {
+  validateMaze(maze, start, goal);
   if (start[0] === goal[0] && start[1] === goal[1]) {
     return { explored: [start], solutionPath: [start] };
   }
 
   let frontierStart = [start];
   let frontierGoal = [goal];
-  const visitedStart = new Map([[start.toString(), null]]);
-  const visitedGoal = new Map([[goal.toString(), null]]);
+  const visitedStart = new Map([[key(start), null]]);
+  const visitedGoal = new Map([[key(goal), null]]);
   const explored = [];
   let meeting = null;
 
@@ -25,10 +28,10 @@ export function solveMazeBidirectionalBFS(maze, start, goal) {
     for (const current of activeFrontier) {
       explored.push(current);
       for (const neighbor of getNeighbors(current, maze)) {
-        const key = neighbor.toString();
-        if (activeVisited.has(key)) continue;
-        activeVisited.set(key, current);
-        if (otherVisited.has(key)) {
+        const k = key(neighbor);
+        if (activeVisited.has(k)) continue;
+        activeVisited.set(k, current);
+        if (otherVisited.has(k)) {
           meeting = neighbor;
           break;
         }
@@ -55,32 +58,17 @@ function buildPath(visitedStart, visitedGoal, meeting) {
   let current = meeting;
   while (current !== null) {
     fromStart.push(current);
-    current = visitedStart.get(current.toString());
+    current = visitedStart.get(key(current));
   }
   fromStart.reverse();
 
   // Path from meeting -> goal (skip meeting itself, already included)
-  current = visitedGoal.get(meeting.toString());
+  current = visitedGoal.get(key(meeting));
   const toGoal = [];
   while (current !== null && current !== undefined) {
     toGoal.push(current);
-    current = visitedGoal.get(current.toString());
+    current = visitedGoal.get(key(current));
   }
 
   return [...fromStart, ...toGoal];
-}
-
-function getNeighbors([row, col], maze) {
-  const directions = [
-    [-1, 0], [1, 0], [0, -1], [0, 1]
-  ];
-  const neighbors = [];
-  for (const [dr, dc] of directions) {
-    const r = row + dr;
-    const c = col + dc;
-    if (r >= 0 && r < maze.length && c >= 0 && c < maze[0].length && maze[r][c] === 0) {
-      neighbors.push([r, c]);
-    }
-  }
-  return neighbors;
 }

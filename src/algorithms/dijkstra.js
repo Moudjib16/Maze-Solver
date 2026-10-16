@@ -1,18 +1,21 @@
+import MinHeap from "../utils/MinHeap.js";
+import { getNeighbors, reconstructPath, key, validateMaze } from "./common.js";
+
 // Dijkstra's algorithm — uniform-cost search (cost 1 per step on unweighted mazes).
-// Equivalent to BFS here, but written with distance + priority selection so it
+// Equivalent to BFS here, but written with distance + priority queue so it
 // stays optimal once weighted terrain is added later.
 export function solveMazeDijkstra(maze, start, goal) {
+  validateMaze(maze, start, goal);
   const explored = [];
-  const dist = { [start.toString()]: 0 };
-  const parents = { [start.toString()]: null };
+  const dist = { [key(start)]: 0 };
+  const parents = { [key(start)]: null };
   const visited = new Set();
-  // Simple priority queue via sorted array — fine for <= 31x31 mazes.
-  const openList = [start];
+  const open = new MinHeap((a, b) => a.d - b.d);
+  open.push({ node: start, d: 0 });
 
-  while (openList.length > 0) {
-    openList.sort((a, b) => dist[a.toString()] - dist[b.toString()]);
-    const current = openList.shift();
-    const currentKey = current.toString();
+  while (!open.isEmpty()) {
+    const { node: current } = open.pop();
+    const currentKey = key(current);
     if (visited.has(currentKey)) continue;
     visited.add(currentKey);
     explored.push(current);
@@ -22,42 +25,15 @@ export function solveMazeDijkstra(maze, start, goal) {
     }
 
     for (const neighbor of getNeighbors(current, maze)) {
-      const key = neighbor.toString();
-      if (visited.has(key)) continue;
+      const k = key(neighbor);
+      if (visited.has(k)) continue;
       const tentative = dist[currentKey] + 1;
-      if (!(key in dist) || tentative < dist[key]) {
-        dist[key] = tentative;
-        parents[key] = current;
-        if (!openList.some((cell) => cell.toString() === key)) {
-          openList.push(neighbor);
-        }
+      if (!(k in dist) || tentative < dist[k]) {
+        dist[k] = tentative;
+        parents[k] = current;
+        open.push({ node: neighbor, d: tentative });
       }
     }
   }
   return { explored, solutionPath: null };
-}
-
-function getNeighbors([row, col], maze) {
-  const directions = [
-    [-1, 0], [1, 0], [0, -1], [0, 1]
-  ];
-  const neighbors = [];
-  for (const [dr, dc] of directions) {
-    const r = row + dr;
-    const c = col + dc;
-    if (r >= 0 && r < maze.length && c >= 0 && c < maze[0].length && maze[r][c] === 0) {
-      neighbors.push([r, c]);
-    }
-  }
-  return neighbors;
-}
-
-function reconstructPath(parents, end) {
-  const path = [];
-  let current = end;
-  while (current !== null) {
-    path.push(current);
-    current = parents[current.toString()];
-  }
-  return path.reverse();
 }

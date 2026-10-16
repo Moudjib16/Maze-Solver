@@ -1,64 +1,47 @@
-// Manhattan distance — admissible for 4-directional grid movement
-function heuristic(coord, goal) {
-  return Math.abs(coord[0] - goal[0]) + Math.abs(coord[1] - goal[1]);
-}
+import MinHeap from "../utils/MinHeap.js";
+import {
+  getNeighbors,
+  reconstructPath,
+  key,
+  manhattan,
+  validateMaze,
+} from "./common.js";
 
+// A* — optimal on 4-dir grids with Manhattan heuristic (g + h).
 export function solveMazeAStar(maze, start, goal) {
-  const openList = [start];
+  validateMaze(maze, start, goal);
   const explored = [];
   const parents = {};
-  const gScores = { [start.toString()]: 0 };
-  const fScores = { [start.toString()]: heuristic(start, goal) };
-  
-  parents[start.toString()] = null;
-  
-  while (openList.length > 0) {
-    // Sort openList by fScores (lowest first)
-    openList.sort((a, b) => fScores[a.toString()] - fScores[b.toString()]);
-    const current = openList.shift();
+  const gScores = { [key(start)]: 0 };
+  const closed = new Set();
+  // Heap of { node, f }; stale entries skipped via closed set + g check.
+  const open = new MinHeap((a, b) => a.f - b.f);
+
+  parents[key(start)] = null;
+  open.push({ node: start, f: manhattan(start, goal) });
+
+  while (!open.isEmpty()) {
+    const { node: current } = open.pop();
+    const currentKey = key(current);
+    if (closed.has(currentKey)) continue;
+    closed.add(currentKey);
     explored.push(current);
-    
+
     if (current[0] === goal[0] && current[1] === goal[1]) {
       return { explored, solutionPath: reconstructPath(parents, current) };
     }
-    
+
     for (let neighbor of getNeighbors(current, maze)) {
-      const tentativeGScore = gScores[current.toString()] + 1;
-      const key = neighbor.toString();
-      
-      if (!(key in gScores) || tentativeGScore < gScores[key]) {
-        parents[key] = current;
-        gScores[key] = tentativeGScore;
-        fScores[key] = tentativeGScore + heuristic(neighbor, goal);
-        if (!openList.some(cell => cell.toString() === key)) {
-          openList.push(neighbor);
-        }
+      const k = key(neighbor);
+      if (closed.has(k)) continue;
+      const tentativeG = gScores[currentKey] + 1;
+
+      if (!(k in gScores) || tentativeG < gScores[k]) {
+        parents[k] = current;
+        gScores[k] = tentativeG;
+        open.push({ node: neighbor, f: tentativeG + manhattan(neighbor, goal) });
       }
     }
   }
   return { explored, solutionPath: null };
-}
-
-function getNeighbors([row, col], maze) {
-  const directions = [
-    [-1, 0], [1, 0], [0, -1], [0, 1]
-  ];
-  const neighbors = [];
-  for (let [dr, dc] of directions) {
-    const r = row + dr, c = col + dc;
-    if (r >= 0 && r < maze.length && c >= 0 && c < maze[0].length && maze[r][c] === 0) {
-      neighbors.push([r, c]);
-    }
-  }
-  return neighbors;
-}
-
-function reconstructPath(parents, end) {
-  const path = [];
-  let current = end;
-  while (current !== null) {
-    path.push(current);
-    current = parents[current.toString()];
-  }
-  return path.reverse();
 }
