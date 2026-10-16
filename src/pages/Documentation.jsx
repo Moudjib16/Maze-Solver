@@ -200,29 +200,32 @@ export default function Documentation() {
         <p className="inline-block rotate-[-1deg] rounded-full border-2 border-slate-900 bg-violet-300 px-3 py-1 text-xs font-extrabold uppercase tracking-widest shadow-[2px_2px_0_0_#0f172a]">
           Field guide
         </p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight">How the racers think</h1>
+        <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">How the racers think</h1>
         <p className="mt-1 max-w-2xl text-sm font-medium text-slate-600">
           The same six pals from the home page, explained like a game manual.
         </p>
 
-        <div className="mt-6 grid items-start gap-6 md:grid-cols-4">
-          <aside className="rounded-3xl border-2 border-slate-900 bg-white p-2 shadow-[3px_3px_0_0_#0f172a] md:sticky md:top-20">
+        <div className="mt-6 grid items-start gap-4 sm:gap-6 lg:grid-cols-4">
+          {/* Algorithm picker: horizontal snap-scroll chips on mobile,
+              sticky vertical sidebar on desktop */}
+          <aside className="thin-scrollbar -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:block lg:space-y-1 lg:overflow-visible lg:rounded-3xl lg:border-2 lg:border-slate-900 lg:bg-white lg:p-2 lg:shadow-[3px_3px_0_0_#0f172a]">
             {algorithms.map((algo) => (
               <button
                 key={algo.id}
                 onClick={() => setSelected(algo)}
-                className={`mb-1 flex w-full items-center gap-2.5 rounded-2xl border-2 px-3 py-2.5 text-left transition-transform last:mb-0 hover:-translate-y-0.5 ${
+                aria-pressed={selected.id === algo.id}
+                className={`flex min-w-[180px] snap-start items-center gap-2.5 rounded-2xl border-2 px-3 py-2.5 text-left transition-transform hover:-translate-y-0.5 lg:mb-1 lg:w-full lg:min-w-0 last:mb-0 ${
                   selected.id === algo.id
-                    ? 'border-slate-900 bg-slate-900 text-white'
-                    : 'border-transparent text-slate-700 hover:border-slate-900 hover:bg-amber-100'
+                    ? 'border-slate-900 bg-slate-900 text-white shadow-[2px_2px_0_0_#0f172a]'
+                    : 'border-slate-900 bg-white text-slate-700 shadow-[2px_2px_0_0_#0f172a] lg:border-transparent lg:shadow-none hover:border-slate-900 hover:bg-amber-100'
                 }`}
               >
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-slate-900 ${algo.badge} font-mono text-xs font-black text-slate-900`}>
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-slate-900 ${algo.badge} text-center font-mono font-black leading-none text-slate-900 ${algo.name.length > 4 ? 'text-[9px]' : 'text-xs'}`}>
                   {algo.name}
                 </span>
-                <span>
-                  <span className="block text-sm font-extrabold">{algo.title}</span>
-                  <span className={`block font-mono text-xs font-bold ${selected.id === algo.id ? 'text-white/70' : 'text-slate-500'}`}>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-extrabold">{algo.title}</span>
+                  <span className={`block truncate font-mono text-xs font-bold ${selected.id === algo.id ? 'text-white/70' : 'text-slate-500'}`}>
                     {algo.complexity} · {algo.path}
                   </span>
                 </span>
@@ -230,13 +233,13 @@ export default function Documentation() {
             ))}
           </aside>
 
-          <article className="md:col-span-3">
-            <div className="rounded-3xl border-2 border-slate-900 bg-white p-5 shadow-[3px_3px_0_0_#0f172a] md:p-6">
-              <div className="flex items-center gap-2">
-                <span className={`flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-slate-900 ${selected.badge} font-mono text-xs font-black text-slate-900`}>
+          <article className="min-w-0 lg:col-span-3">
+            <div className="rounded-3xl border-2 border-slate-900 bg-white p-4 shadow-[3px_3px_0_0_#0f172a] sm:p-5 lg:p-6">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border-2 border-slate-900 ${selected.badge} text-center font-mono font-black leading-none text-slate-900 ${selected.name.length > 4 ? 'text-[10px]' : 'text-xs'}`}>
                   {selected.name}
                 </span>
-                <h2 className="text-xl font-black">{selected.title}</h2>
+                <h2 className="truncate text-lg font-black sm:text-xl">{selected.title}</h2>
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 <div className="rounded-2xl border border-slate-900 bg-amber-100 px-3 py-2">
@@ -256,15 +259,15 @@ export default function Documentation() {
               <p className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 text-sm font-bold text-slate-700">{selected.when}</p>
             </div>
 
-            <div className="mt-4 overflow-hidden rounded-3xl border-2 border-slate-900 shadow-[3px_3px_0_0_#0f172a]">
-              <div className="flex items-center gap-1.5 border-b-2 border-slate-900 bg-slate-900 px-5 py-2.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                <h3 className="ml-2 font-mono text-xs font-bold text-white/70">racer-brain.js</h3>
+            <div className="mt-4 max-w-full overflow-hidden rounded-3xl border-2 border-slate-900 shadow-[3px_3px_0_0_#0f172a]">
+              <div className="flex items-center gap-1.5 border-b-2 border-slate-900 bg-slate-900 px-4 py-2.5 sm:px-5">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-rose-400" />
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-300" />
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400" />
+                <h3 className="ml-2 truncate font-mono text-xs font-bold text-white/70">racer-brain.js</h3>
               </div>
-              <pre className="thin-scrollbar m-0 max-h-96 overflow-auto bg-slate-900 p-4 font-mono text-[13px] leading-relaxed text-violet-100">
-                <code>{selected.code}</code>
+              <pre className="thin-scrollbar m-0 max-h-96 max-w-full overflow-auto bg-slate-900 p-3 font-mono text-xs leading-relaxed text-violet-100 sm:p-4 sm:text-[13px]">
+                <code className="whitespace-pre">{selected.code}</code>
               </pre>
             </div>
           </article>
