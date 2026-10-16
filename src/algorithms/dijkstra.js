@@ -1,9 +1,8 @@
 import MinHeap from "../utils/MinHeap.js";
-import { getNeighbors, reconstructPath, key, validateMaze } from "./common.js";
+import { getNeighbors, reconstructPath, key, getCost, pathCost, validateMaze } from "./common.js";
 
-// Dijkstra's algorithm — uniform-cost search (cost 1 per step on unweighted mazes).
-// Equivalent to BFS here, but written with distance + priority queue so it
-// stays optimal once weighted terrain is added later.
+// Dijkstra's algorithm — optimal with weighted terrain (mud cost 5,
+// water cost 10). Reduces to BFS-like behavior on uniform open mazes.
 export function solveMazeDijkstra(maze, start, goal) {
   validateMaze(maze, start, goal);
   const explored = [];
@@ -21,13 +20,14 @@ export function solveMazeDijkstra(maze, start, goal) {
     explored.push(current);
 
     if (current[0] === goal[0] && current[1] === goal[1]) {
-      return { explored, solutionPath: reconstructPath(parents, current) };
+      const solutionPath = reconstructPath(parents, current);
+      return { explored, solutionPath, cost: pathCost(maze, solutionPath) };
     }
 
     for (const neighbor of getNeighbors(current, maze)) {
       const k = key(neighbor);
       if (visited.has(k)) continue;
-      const tentative = dist[currentKey] + 1;
+      const tentative = dist[currentKey] + getCost(maze, neighbor[0], neighbor[1]);
       if (!(k in dist) || tentative < dist[k]) {
         dist[k] = tentative;
         parents[k] = current;

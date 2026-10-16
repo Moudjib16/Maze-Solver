@@ -4,10 +4,14 @@ import {
   reconstructPath,
   key,
   manhattan,
+  getCost,
+  pathCost,
   validateMaze,
 } from "./common.js";
 
 // A* — optimal on 4-dir grids with Manhattan heuristic (g + h).
+// Respects weighted terrain (mud cost 5, water cost 10). Heuristic uses
+// minimum step cost 1, so it stays admissible with weights.
 export function solveMazeAStar(maze, start, goal) {
   validateMaze(maze, start, goal);
   const explored = [];
@@ -28,13 +32,14 @@ export function solveMazeAStar(maze, start, goal) {
     explored.push(current);
 
     if (current[0] === goal[0] && current[1] === goal[1]) {
-      return { explored, solutionPath: reconstructPath(parents, current) };
+      const solutionPath = reconstructPath(parents, current);
+      return { explored, solutionPath, cost: pathCost(maze, solutionPath) };
     }
 
     for (let neighbor of getNeighbors(current, maze)) {
       const k = key(neighbor);
       if (closed.has(k)) continue;
-      const tentativeG = gScores[currentKey] + 1;
+      const tentativeG = gScores[currentKey] + getCost(maze, neighbor[0], neighbor[1]);
 
       if (!(k in gScores) || tentativeG < gScores[k]) {
         parents[k] = current;

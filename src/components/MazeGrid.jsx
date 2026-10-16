@@ -6,6 +6,7 @@ import { solveMazeDijkstra } from "../algorithms/dijkstra";
 import { solveMazeGreedy } from "../algorithms/greedy";
 import { solveMazeBidirectionalBFS } from "../algorithms/bidirectionalBfs";
 import { getDefaultMaze, getDefaultStart, getDefaultGoal, generateRandomMaze } from "../utils/maze";
+import { pathCost } from "../algorithms/common";
 
 const SPEED_OPTIONS = [
   { label: "Chill 0.5x", value: 0.5 },
@@ -27,13 +28,15 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Chunky arcade cells. Start/goal show a letter.
 // Pointer handlers are stable refs from the parent (row/col passed as props)
 // so React.memo still skips unchanged cells during animation.
-const MazeCell = React.memo(({ row, col, isWall, isStart, isGoal, isExplored, isPath, disabled, onCellDown, onCellEnter }) => {
+const MazeCell = React.memo(({ row, col, isWall, isMud, isWater, isStart, isGoal, isExplored, isPath, disabled, onCellDown, onCellEnter }) => {
   let cls = "bg-white border-slate-300";
   let label = null;
   if (isWall) cls = "bg-slate-900 border-slate-900";
   else if (isStart) { cls = "bg-sky-500 border-slate-900"; label = "S"; }
   else if (isGoal) { cls = "bg-rose-500 border-slate-900"; label = "G"; }
   else if (isPath) cls = "bg-emerald-400 border-slate-900";
+  else if (isMud) cls = "bg-amber-700 border-slate-900";
+  else if (isWater) cls = "bg-cyan-500 border-slate-900";
   else if (isExplored) cls = "bg-amber-200 border-amber-300";
   return (
     <div
@@ -59,7 +62,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const [loops, setLoops] = useState(0);
   const [status, setStatus] = useState("idle"); // idle | running | done | no-path | error | cancelled
   const [solveMs, setSolveMs] = useState(null);
-  const [tool, setTool] = useState("wall"); // wall | erase | start | goal
+  const [tool, setTool] = useState("wall"); // wall | erase | mud | water | start | goal
   const runIdRef = useRef(0);
   // Drag state: { kind: 'paint', value: 0|1 } | { kind: 'move-start' } | { kind: 'move-goal' } | null
   const dragRef = useRef(null);
@@ -91,9 +94,10 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   }, []);
 
   const movePoint = useCallback((r, c, which) => {
-    // Landing cell is always walkable so solvers never start/end in a wall.
+    // Landing on a wall clears it to open; landing on mud/water keeps the
+    // terrain (S/G can sit on weighted tiles, entry cost still counts).
     setCurrentMaze((prev) => {
-      if (prev[r][c] === 0) return prev;
+      if (prev[r][c] !== 1) return prev;
       const next = prev.map((row) => [...row]);
       next[r][c] = 0;
       return next;
@@ -113,9 +117,9 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
       if (!isGoalCell) { movePoint(r, c, "goal"); clearTrail(); }
       return { kind: "move-goal" };
     }
-    // Wall / erase painting never covers start/goal.
+    // Wall / erase / terrain painting never covers start/goal.
     if (isStartCell || isGoalCell) return null;
-    const value = tool === "erase" ? 0 : 1;
+    const value = tool === "erase" ? 0 : tool === "mud" ? 2 : tool === "water" ? 3 : 1;
     paintCell(r, c, value);
     clearTrail();
     return { kind: "paint", value };
@@ -272,7 +276,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
         {status === "done" && (
           <p>
             <span className="rounded-full border border-slate-900 bg-emerald-300 px-2 py-0.5 text-xs font-black">ESCAPED!</span>{" "}
-            {path.length} steps · {explored.length} explored
+            {path.length} steps · cost {pathCost(currentMaze, path)} · {explored.length} explored
             {solveMs !== null ? ` · ${solveMs} ms` : ""}
           </p>
         )}
@@ -296,6 +300,8 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           {[
             { value: "wall", label: "🧱 Wall" },
             { value: "erase", label: "🧽 Erase" },
+            { value: "mud", label: "🟤 Mud ×5" },
+            { value: "water", label: "🌊 Water ×10" },
             { value: "start", label: "S Start" },
             { value: "goal", label: "G Goal" },
           ].map((t) => (
@@ -330,6 +336,8 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
                   row={rowIndex}
                   col={colIndex}
                   isWall={cell === 1}
+                  isMud={cell === 2}
+                  isWater={cell === 3}
                   isStart={isStart}
                   isGoal={isGoal}
                   isExplored={exploredSet.has(key)}
@@ -344,6 +352,8 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
         </div>
         <div className="mx-auto mt-3 flex max-w-[620px] flex-wrap gap-2 text-[11px] font-bold text-slate-600">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-900" /> Wall</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-700" /> Mud ×5</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-cyan-500" /> Water ×10</span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-200" /> Sniffed</span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" /> Escape route</span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-sky-500" /> Start</span>
