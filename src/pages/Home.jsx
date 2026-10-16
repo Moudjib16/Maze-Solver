@@ -167,8 +167,8 @@ export default function Home() {
 // so the home page always matches the site style (no more stale GIF).
 function DemoMaze() {
   const maze = useMemo(() => generateRandomMaze(15, 15), []);
-  const start = [1, 1];
-  const goal = [13, 13];
+  const start = useMemo(() => [1, 1], []);
+  const goal = useMemo(() => [maze.length - 2, maze[0].length - 2], [maze]);
   const result = useMemo(() => solveMazeBFS(maze, start, goal), [maze]);
   const explored = result.explored;
   const solution = result.solutionPath ?? [];

@@ -46,13 +46,43 @@ function buildDefaultMaze() {
   return carveMaze(grid, rows, cols, mulberry32(1337));
 }
 
-// Predefined default maze — 15x15, deterministic across reloads
+// Predefined default maze — 15x15, deterministic across reloads.
+// NOTE: `maze` is a shared singleton. Never mutate it in place — use
+// `getDefaultMaze()` / `cloneMaze()` to get a fresh editable copy.
 export const maze = buildDefaultMaze();
 
 export const numRows = maze.length;
 export const numCols = maze[0].length;
 export const start = [1, 1];
 export const goal = [numRows - 2, numCols - 2];
+
+// Deep-freeze the singleton in dev so accidental mutation throws early
+// instead of leaking across mounts.
+if (typeof Object.freeze === "function") {
+  for (const row of maze) Object.freeze(row);
+  Object.freeze(maze);
+  Object.freeze(start);
+  Object.freeze(goal);
+}
+
+/// Return a deep copy of a maze grid (rows are cloned).
+export function cloneMaze(grid) {
+  return grid.map((row) => [...row]);
+}
+
+/// Fresh editable copy of the default maze.
+export function getDefaultMaze() {
+  return cloneMaze(maze);
+}
+
+/// Fresh copies of default start/goal (arrays are mutable by callers).
+export function getDefaultStart() {
+  return [...start];
+}
+
+export function getDefaultGoal() {
+  return [...goal];
+}
 
 // In src/utils/maze.js
 export function generateRandomMaze(rows, cols, loopRatio = 0) {

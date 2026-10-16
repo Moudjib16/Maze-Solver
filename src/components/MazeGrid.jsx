@@ -5,7 +5,7 @@ import { solveMazeAStar } from "../algorithms/aStar";
 import { solveMazeDijkstra } from "../algorithms/dijkstra";
 import { solveMazeGreedy } from "../algorithms/greedy";
 import { solveMazeBidirectionalBFS } from "../algorithms/bidirectionalBfs";
-import { maze as defaultMaze, start as defaultStart, goal as defaultGoal, generateRandomMaze } from "../utils/maze";
+import { getDefaultMaze, getDefaultStart, getDefaultGoal, generateRandomMaze } from "../utils/maze";
 
 const SPEED_OPTIONS = [
   { label: "Chill 0.5x", value: 0.5 },
@@ -44,9 +44,9 @@ const MazeCell = React.memo(({ isWall, isStart, isGoal, isExplored, isPath }) =>
 });
 
 const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, setRunning }) => {
-  const [currentMaze, setCurrentMaze] = useState(defaultMaze);
-  const [currentStart, setCurrentStart] = useState(defaultStart);
-  const [currentGoal, setCurrentGoal] = useState(defaultGoal);
+  const [currentMaze, setCurrentMaze] = useState(() => getDefaultMaze());
+  const [currentStart, setCurrentStart] = useState(() => getDefaultStart());
+  const [currentGoal, setCurrentGoal] = useState(() => getDefaultGoal());
   const [speed, setSpeed] = useState(1);
   const [mazeSize, setMazeSize] = useState(15);
   const [loops, setLoops] = useState(0);
