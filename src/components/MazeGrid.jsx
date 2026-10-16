@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { solveMazeBFS } from "../algorithms/bfs";
 import { solveMazeDFS } from "../algorithms/dfs";
 import { solveMazeAStar } from "../algorithms/aStar";
@@ -25,7 +25,9 @@ const LOOP_OPTIONS = [
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Chunky arcade cells. Start/goal show a letter.
-const MazeCell = React.memo(({ isWall, isStart, isGoal, isExplored, isPath }) => {
+// Pointer handlers are stable refs from the parent (row/col passed as props)
+// so React.memo still skips unchanged cells during animation.
+const MazeCell = React.memo(({ row, col, isWall, isStart, isGoal, isExplored, isPath, disabled, onCellDown, onCellEnter }) => {
   let cls = "bg-white border-slate-300";
   let label = null;
   if (isWall) cls = "bg-slate-900 border-slate-900";
@@ -35,7 +37,13 @@ const MazeCell = React.memo(({ isWall, isStart, isGoal, isExplored, isPath }) =>
   else if (isExplored) cls = "bg-amber-200 border-amber-300";
   return (
     <div
-      className={`flex aspect-square w-full items-center justify-center rounded-md border-2 text-[10px] font-black text-white transition-colors duration-150 ${cls}`}
+      role={disabled ? undefined : "button"}
+      aria-label={isStart ? "Start" : isGoal ? "Goal" : isWall ? `Wall at ${row},${col}` : `Open at ${row},${col}`}
+      aria-disabled={disabled}
+      onPointerDown={(e) => { if (e.button === 0 || e.button === 2) { e.preventDefault(); onCellDown(row, col); } }}
+      onPointerEnter={(e) => { if (e.buttons !== 0) onCellEnter(row, col); }}
+      onContextMenu={(e) => e.preventDefault()}
+      className={`flex aspect-square w-full items-center justify-center rounded-md border-2 text-[10px] font-black text-white transition-colors duration-150 ${cls} ${disabled ? "" : "cursor-crosshair"}`}
     >
       {label && <span className="text-slate-900">{label}</span>}
     </div>
@@ -51,7 +59,91 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const [loops, setLoops] = useState(0);
   const [status, setStatus] = useState("idle"); // idle | running | done | no-path | error | cancelled
   const [solveMs, setSolveMs] = useState(null);
+  const [tool, setTool] = useState("wall"); // wall | erase | start | goal
   const runIdRef = useRef(0);
+  // Drag state: { kind: 'paint', value: 0|1 } | { kind: 'move-start' } | { kind: 'move-goal' } | null
+  const dragRef = useRef(null);
+
+  // End any paint/move drag on global pointer-up (covers release outside grid).
+  useEffect(() => {
+    const up = () => { dragRef.current = null; };
+    window.addEventListener("pointerup", up);
+    return () => window.removeEventListener("pointerup", up);
+  }, []);
+
+  const clearTrail = useCallback(() => {
+    // Skip redundant resets during long paint drags (new [] would re-render).
+    if (explored.length === 0 && path.length === 0 && status === "idle" && solveMs === null) return;
+    ++runIdRef.current;
+    setExplored([]);
+    setPath([]);
+    setStatus("idle");
+    setSolveMs(null);
+  }, [explored.length, path.length, status, solveMs, setExplored, setPath]);
+
+  const paintCell = useCallback((r, c, value) => {
+    setCurrentMaze((prev) => {
+      if (prev[r][c] === value) return prev;
+      const next = prev.map((row) => [...row]);
+      next[r][c] = value;
+      return next;
+    });
+  }, []);
+
+  const movePoint = useCallback((r, c, which) => {
+    // Landing cell is always walkable so solvers never start/end in a wall.
+    setCurrentMaze((prev) => {
+      if (prev[r][c] === 0) return prev;
+      const next = prev.map((row) => [...row]);
+      next[r][c] = 0;
+      return next;
+    });
+    if (which === "start") setCurrentStart([r, c]);
+    else setCurrentGoal([r, c]);
+  }, []);
+
+  const applyToolToCell = useCallback((r, c) => {
+    const isStartCell = r === currentStart[0] && c === currentStart[1];
+    const isGoalCell = r === currentGoal[0] && c === currentGoal[1];
+    if (tool === "start") {
+      if (!isStartCell) { movePoint(r, c, "start"); clearTrail(); }
+      return { kind: "move-start" };
+    }
+    if (tool === "goal") {
+      if (!isGoalCell) { movePoint(r, c, "goal"); clearTrail(); }
+      return { kind: "move-goal" };
+    }
+    // Wall / erase painting never covers start/goal.
+    if (isStartCell || isGoalCell) return null;
+    const value = tool === "erase" ? 0 : 1;
+    paintCell(r, c, value);
+    clearTrail();
+    return { kind: "paint", value };
+  }, [tool, currentStart, currentGoal, movePoint, paintCell, clearTrail]);
+
+  const handleCellDown = useCallback((r, c) => {
+    if (running) return;
+    const isStartCell = r === currentStart[0] && c === currentStart[1];
+    const isGoalCell = r === currentGoal[0] && c === currentGoal[1];
+    // Dragging the S/G markers directly always moves them, whatever the tool.
+    if (isStartCell) { dragRef.current = { kind: "move-start" }; return; }
+    if (isGoalCell) { dragRef.current = { kind: "move-goal" }; return; }
+    dragRef.current = applyToolToCell(r, c);
+  }, [running, currentStart, currentGoal, applyToolToCell]);
+
+  const handleCellEnter = useCallback((r, c) => {
+    if (running || !dragRef.current) return;
+    const drag = dragRef.current;
+    if (drag.kind === "move-start") {
+      if (r !== currentStart[0] || c !== currentStart[1]) { movePoint(r, c, "start"); clearTrail(); }
+    } else if (drag.kind === "move-goal") {
+      if (r !== currentGoal[0] || c !== currentGoal[1]) { movePoint(r, c, "goal"); clearTrail(); }
+    } else if (drag.kind === "paint") {
+      if ((r === currentStart[0] && c === currentStart[1]) || (r === currentGoal[0] && c === currentGoal[1])) return;
+      paintCell(r, c, drag.value);
+      clearTrail();
+    }
+  }, [running, currentStart, currentGoal, movePoint, paintCell, clearTrail]);
 
   // O(1) lookups for cell rendering
   const exploredSet = useMemo(() => new Set(explored.map(([r, c]) => `${r},${c}`)), [explored]);
@@ -192,15 +284,35 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
         )}
         {(status === "idle" || status === "cancelled") && (
           <p className="text-slate-600">
-            {currentMaze.length}×{cols} playground — press GO to let {algorithm} loose!
+            {currentMaze.length}×{cols} playground — paint walls or drag S/G, then press GO to let {algorithm} loose!
           </p>
         )}
       </div>
 
       {/* Grid */}
       <div className="overflow-x-auto px-5 py-5">
+        {/* Edit tools */}
+        <div className="mx-auto mb-3 flex max-w-[620px] flex-wrap items-center gap-2" role="toolbar" aria-label="Maze editing tools">
+          {[
+            { value: "wall", label: "🧱 Wall" },
+            { value: "erase", label: "🧽 Erase" },
+            { value: "start", label: "S Start" },
+            { value: "goal", label: "G Goal" },
+          ].map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setTool(t.value)}
+              disabled={running}
+              aria-pressed={tool === t.value}
+              className={`rounded-full border-2 border-slate-900 px-3 py-1 text-xs font-black shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${tool === t.value ? "bg-slate-900 text-white" : "bg-white text-slate-700"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+          <span className="ml-auto text-[11px] font-bold text-slate-500">Tip: drag to paint · drag S/G to move</span>
+        </div>
         <div
-          className="playful-dots grid w-full gap-1 rounded-2xl border-2 border-slate-900 bg-violet-100 p-2.5"
+          className="playful-dots grid w-full touch-none gap-1 rounded-2xl border-2 border-slate-900 bg-violet-100 p-2.5 select-none"
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
             maxWidth: cols > 15 ? "620px" : "400px",
@@ -215,11 +327,16 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
               return (
                 <MazeCell
                   key={`${rowIndex}-${colIndex}`}
+                  row={rowIndex}
+                  col={colIndex}
                   isWall={cell === 1}
                   isStart={isStart}
                   isGoal={isGoal}
                   isExplored={exploredSet.has(key)}
                   isPath={pathSet.has(key)}
+                  disabled={running}
+                  onCellDown={handleCellDown}
+                  onCellEnter={handleCellEnter}
                 />
               );
             })
