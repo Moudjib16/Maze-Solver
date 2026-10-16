@@ -53,7 +53,7 @@ const Solver = () => {
         
         {/* Path Tables (Right) */}
         <div className="lg:w-2/7">
-          <PathTables explored={explored} path={path} className="pathTable"/>
+          <PathTables explored={explored} path={path} />
         </div>
       </section>
     </div>

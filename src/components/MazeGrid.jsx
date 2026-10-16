@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { solveMazeBFS } from "../algorithms/bfs";
 import { solveMazeDFS } from "../algorithms/dfs";
 import { solveMazeAStar } from "../algorithms/aStar";
-import PathTables from "./PathTables";
-import { maze as defaultMaze, start as defaultStart, goal as defaultGoal, numRows, numCols, generateRandomMaze } from "../utils/maze";
+import { maze as defaultMaze, start as defaultStart, goal as defaultGoal, generateRandomMaze } from "../utils/maze";
 
 const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, setRunning }) => {
   // State for current maze and its start/goal points.
@@ -11,8 +10,6 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const [currentMaze, setCurrentMaze] = useState(defaultMaze);
   const [currentStart, setCurrentStart] = useState(defaultStart);
   const [currentGoal, setCurrentGoal] = useState(defaultGoal);
-  // State to track if a random maze is being used
-  const [useRandomMaze, setUseRandomMaze] = useState(false);
 
   // Maze cell component
   const MazeCell = ({ isWall, isStart, isGoal, isExplored, isPath }) => {
@@ -71,7 +68,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
 
   // Generate a random maze (e.g., 21x21) ensuring it's solvable,
   // and update the start and goal to fixed positions (e.g., [1,1] and [rows-2, cols-2])
-  const generateMaze = () => {
+  const handleGenerateRandomMaze = () => {
     const rows = 21; // New maze rows (should be odd for proper generation)
     const cols = 21; // New maze columns (should be odd for proper generation)
     const newMaze = generateRandomMaze(rows, cols);
@@ -81,7 +78,6 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     // For random maze, set start and goal to fixed positions
     setCurrentStart([1, 1]);
     setCurrentGoal([rows - 2, cols - 2]);
-    setUseRandomMaze(true);
   };
 
   return (
@@ -123,15 +119,12 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           {running ? "Visualizing..." : "Start Visualization"}
         </button>
         <button
-          onClick={generateMaze}
+          onClick={handleGenerateRandomMaze}
           className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 font-medium text-sm"
         >
           Generate Random Maze
         </button>
       </div>
-
-      {/* Conditionally show PathTables when random maze is used (or always show if desired) */}
-      {useRandomMaze && <PathTables explored={explored} path={path} />}
     </div>
   );
 };
