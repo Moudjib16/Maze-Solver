@@ -92,6 +92,104 @@ const algorithms = [
   }
   return null; // no way out
 }`
+  },
+  {
+    id: 'dijkstra',
+    name: 'Dijkstra',
+    title: 'The Accountant',
+    badge: 'bg-teal-400',
+    complexity: 'O(V²)',
+    path: 'Shortest path',
+    description: 'Dijkstra counts every step like coins. It always expands the tile with the smallest distance-from-start, so the first time it reaches the treat the route is optimal — even once walls get different costs.',
+    when: 'Pick Dijkstra when steps have different prices, or to see uniform-cost search done right.',
+    code: `function dijkstra(maze, start, goal) {
+  const dist = { [start]: 0 };
+  const parent = { [start]: null };
+  const visited = new Set();
+  const open = [start];
+
+  while (open.length > 0) {
+    open.sort((a, b) => dist[a] - dist[b]);
+    const current = open.shift();
+    if (visited.has(current.toString())) continue;
+    visited.add(current.toString());
+    if (isGoal(current, goal)) return buildPath(parent, current);
+
+    for (const next of neighbors(current, maze)) {
+      const cost = dist[current] + 1;
+      if (!(next in dist) || cost < dist[next]) {
+        dist[next] = cost;
+        parent[next] = current;
+        open.push(next);
+      }
+    }
+  }
+  return null; // no way out
+}`
+  },
+  {
+    id: 'greedy',
+    name: 'Greedy',
+    title: 'The Sprinter',
+    badge: 'bg-rose-400',
+    complexity: 'O(E)',
+    path: 'Any path',
+    description: 'Greedy only looks at the finish line: the Manhattan distance to the goal. It sprints straight at the treat, explores very little, but can get fooled by dead ends into a longer escape.',
+    when: 'Pick Greedy for speed — watch it beat A* to the goal, then compare path lengths.',
+    code: `function greedy(maze, start, goal) {
+  const open = [start];
+  const visited = new Set([start.toString()]);
+  const parent = { [start]: null };
+  const h = (cell) => manhattan(cell, goal);
+
+  while (open.length > 0) {
+    open.sort((a, b) => h(a) - h(b));
+    const current = open.shift();
+    if (isGoal(current, goal)) return buildPath(parent, current);
+
+    for (const next of neighbors(current, maze)) {
+      if (!visited.has(next.toString())) {
+        visited.add(next.toString());
+        parent[next] = current;
+        open.push(next);
+      }
+    }
+  }
+  return null; // no way out
+}`
+  },
+  {
+    id: 'bi-bfs',
+    name: 'Bi-BFS',
+    title: 'The Pincer',
+    badge: 'bg-lime-400',
+    complexity: 'O(V + E)',
+    path: 'Shortest path',
+    description: 'Bidirectional BFS sends two racers at once — one from home, one from the treat. When their sniff trails touch, the two halves join into one shortest escape. Usually sniffs far fewer tiles than plain BFS.',
+    when: 'Pick Bi-BFS when you want the shortest path with the smallest sniff count.',
+    code: `function biBFS(maze, start, goal) {
+  let frontS = [start], frontG = [goal];
+  const seenS = new Map([[start, null]]);
+  const seenG = new Map([[goal, null]]);
+
+  while (frontS.length && frontG.length) {
+    const fromStart = frontS.length <= frontG.length;
+    const next = [];
+    const active = fromStart ? frontS : frontG;
+    for (const cur of active) {
+      for (const nxt of neighbors(cur, maze)) {
+        const seen = fromStart ? seenS : seenG;
+        const other = fromStart ? seenG : seenS;
+        if (seen.has(nxt.toString())) continue;
+        seen.set(nxt.toString(), cur);
+        if (other.has(nxt.toString())) return joinPath(seenS, seenG, nxt);
+        next.push(nxt);
+      }
+    }
+    if (fromStart) frontS = next; else frontG = next;
+  }
+  return null; // no way out
+}`
   }
 ];
 
@@ -106,7 +204,7 @@ export default function Documentation() {
         </p>
         <h1 className="mt-3 text-3xl font-black tracking-tight">How the racers think</h1>
         <p className="mt-1 max-w-2xl text-sm font-medium text-slate-600">
-          The same three pals from the home page, explained like a game manual.
+          The same six pals from the home page, explained like a game manual.
         </p>
 
         <div className="mt-6 grid items-start gap-6 md:grid-cols-4">

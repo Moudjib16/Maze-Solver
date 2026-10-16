@@ -2,6 +2,9 @@ import React, { useState, useMemo, useRef } from "react";
 import { solveMazeBFS } from "../algorithms/bfs";
 import { solveMazeDFS } from "../algorithms/dfs";
 import { solveMazeAStar } from "../algorithms/aStar";
+import { solveMazeDijkstra } from "../algorithms/dijkstra";
+import { solveMazeGreedy } from "../algorithms/greedy";
+import { solveMazeBidirectionalBFS } from "../algorithms/bidirectionalBfs";
 import { maze as defaultMaze, start as defaultStart, goal as defaultGoal, generateRandomMaze } from "../utils/maze";
 
 const SPEED_OPTIONS = [
@@ -89,6 +92,15 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           break;
         case "A*":
           result = solveMazeAStar(currentMaze, currentStart, currentGoal);
+          break;
+        case "Dijkstra":
+          result = solveMazeDijkstra(currentMaze, currentStart, currentGoal);
+          break;
+        case "Greedy":
+          result = solveMazeGreedy(currentMaze, currentStart, currentGoal);
+          break;
+        case "Bi-BFS":
+          result = solveMazeBidirectionalBFS(currentMaze, currentStart, currentGoal);
           break;
         default:
           throw new Error("Invalid algorithm");

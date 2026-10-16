@@ -8,11 +8,14 @@ const RACERS = [
   { name: "BFS", color: "bg-sky-400", card: "border-sky-500 bg-sky-50", title: "The Perfectionist", text: "Checks every corridor level by level. Always finds the shortest way out.", stat: "O(V + E) · shortest" },
   { name: "DFS", color: "bg-amber-400", card: "border-amber-500 bg-amber-50", title: "The Daredevil", text: "Sprints down each tunnel as far as it goes before turning back. Fast, wild, not always optimal.", stat: "O(V + E) · any path" },
   { name: "A*", color: "bg-violet-500", card: "border-violet-500 bg-violet-50", title: "The Navigator", text: "Uses a Manhattan compass to sniff out the goal. Shortest path with fewer steps explored.", stat: "O(E) · shortest, guided" },
+  { name: "Dijkstra", color: "bg-teal-400", card: "border-teal-500 bg-teal-50", title: "The Accountant", text: "Counts every step, always expands the cheapest tile. Optimal now, and ready for weighted terrain.", stat: "O(V²) · shortest" },
+  { name: "Greedy", color: "bg-rose-400", card: "border-rose-500 bg-rose-50", title: "The Sprinter", text: "Chases the goal with pure instinct. Explores almost nothing, but the route can wander.", stat: "O(E) · fast, not optimal" },
+  { name: "Bi-BFS", color: "bg-lime-400", card: "border-lime-500 bg-lime-50", title: "The Pincer", text: "Attacks from both ends at once and meets in the middle. Shortest path, tiny sniff trail.", stat: "O(V + E) · shortest, 2-sided" },
 ];
 
 const STEPS = [
   { icon: <FaCompass />, bg: "bg-emerald-400", title: "Build a labyrinth", text: "Start with the cozy 15×15 or roll a wild random maze up to 31×31." },
-  { icon: <FaRoute />, bg: "bg-sky-400", title: "Pick your racer", text: "Choose BFS, DFS, or A* and dial the speed from chill to zoom." },
+  { icon: <FaRoute />, bg: "bg-sky-400", title: "Pick your racer", text: "Choose BFS, DFS, A*, Dijkstra, Greedy, or Bi-BFS and dial the speed from chill to zoom." },
   { icon: <FaStopwatch />, bg: "bg-amber-400", title: "Race and compare", text: "Watch the explored trail fill in, then check path length and solve time." },
 ];
 
@@ -46,7 +49,7 @@ export default function Home() {
               </span>
             </h1>
             <p className="mt-4 max-w-2xl text-base font-medium leading-relaxed text-slate-700 md:text-lg">
-              Pit BFS, DFS, and A* against twisty labyrinths. Watch who explores
+              Pit BFS, DFS, A*, Dijkstra, Greedy, and Bi-BFS against twisty labyrinths. Watch who explores
               the most, who finds the shortcut, and who gets gloriously lost.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -102,7 +105,7 @@ export default function Home() {
         {/* Racers */}
         <section className="py-12">
           <h2 className="text-2xl font-black tracking-tight">Meet the racers</h2>
-          <p className="mt-1 text-sm font-medium text-slate-600">Three strategies, three personalities. Same maze, very different road trips.</p>
+          <p className="mt-1 text-sm font-medium text-slate-600">Six strategies, six personalities. Same maze, very different road trips.</p>
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             {RACERS.map((racer) => (
               <div key={racer.name} className={`rounded-3xl border-2 border-slate-900 ${racer.card} p-5 shadow-[4px_4px_0_0_#0f172a] transition-transform hover:-translate-y-1`}>

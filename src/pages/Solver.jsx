@@ -6,6 +6,9 @@ const ALGORITHMS = [
   { value: 'BFS', label: 'BFS', hint: 'The Perfectionist', active: 'border-sky-600 bg-sky-400', soft: 'bg-sky-50' },
   { value: 'DFS', label: 'DFS', hint: 'The Daredevil', active: 'border-amber-600 bg-amber-400', soft: 'bg-amber-50' },
   { value: 'A*', label: 'A*', hint: 'The Navigator', active: 'border-violet-600 bg-violet-500', soft: 'bg-violet-50' },
+  { value: 'Dijkstra', label: 'Dijkstra', hint: 'The Accountant', active: 'border-teal-600 bg-teal-400', soft: 'bg-teal-50' },
+  { value: 'Greedy', label: 'Greedy', hint: 'The Sprinter', active: 'border-rose-600 bg-rose-400', soft: 'bg-rose-50' },
+  { value: 'Bi-BFS', label: 'Bi-BFS', hint: 'The Pincer', active: 'border-lime-600 bg-lime-400', soft: 'bg-lime-50' },
 ];
 
 const Solver = () => {
