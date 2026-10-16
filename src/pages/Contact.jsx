@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FaGithub, FaInstagram, FaDiscord } from 'react-icons/fa';
+import { FaGithub, FaInstagram, FaDiscord, FaPaperPlane } from 'react-icons/fa';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -18,68 +18,83 @@ export default function Contact() {
     setFormData({ name: '', email: '', message: '' });
   };
 
+  const inputCls =
+    'w-full rounded-2xl border-2 border-slate-900 bg-amber-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:border-violet-600 focus:bg-white focus:outline-none';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white flex flex-col items-center py-16 px-6">
-      <div className="w-full max-w-3xl bg-gray-950/80 backdrop-blur-md p-8 rounded-lg shadow-xl border border-gray-800">
-        <h2 className="text-4xl font-bold text-center bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent mb-6">Get in Touch</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="relative">
-            <label className="block text-gray-300 mb-2">Name</label>
+    <div className="bg-amber-50 text-slate-900">
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <p className="inline-block rotate-[1deg] rounded-full border-2 border-slate-900 bg-sky-300 px-3 py-1 text-xs font-extrabold uppercase tracking-widest shadow-[2px_2px_0_0_#0f172a]">
+          Fan mail
+        </p>
+        <h1 className="mt-3 text-3xl font-black tracking-tight">Say hi to the maze crew</h1>
+        <p className="mt-1 text-sm font-medium text-slate-600">
+          Found a gnarly maze? Got an idea for a new racer? Send it over!
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-3xl border-2 border-slate-900 bg-white p-5 shadow-[4px_4px_0_0_#0f172a] md:p-6">
+          <div>
+            <label htmlFor="name" className="mb-1 block text-sm font-extrabold">Your name</label>
             <input
+              id="name"
               type="text"
               name="name"
-              className="w-full p-3 bg-gray-800 text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Maze Fan"
+              className={inputCls}
               required
               value={formData.name}
               onChange={handleChange}
             />
           </div>
-          
-          <div className="relative">
-            <label className="block text-gray-300 mb-2">Email</label>
+
+          <div>
+            <label htmlFor="email" className="mb-1 block text-sm font-extrabold">Email</label>
             <input
+              id="email"
               type="email"
               name="email"
-              className="w-full p-3 bg-gray-800 text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="fan@example.com"
+              className={inputCls}
               required
               value={formData.email}
               onChange={handleChange}
             />
           </div>
-          
-          <div className="relative">
-            <label className="block text-gray-300 mb-2">Message</label>
+
+          <div>
+            <label htmlFor="message" className="mb-1 block text-sm font-extrabold">Message</label>
             <textarea
+              id="message"
               name="message"
               rows="5"
-              className="w-full p-3 bg-gray-800 text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="I built a maze that stumped A*…"
+              className={inputCls}
               required
               value={formData.message}
               onChange={handleChange}
-            ></textarea>
+            />
           </div>
-          
+
           <button
             type="submit"
-            className="w-full py-3 rounded-lg bg-gradient-to-r from-blue-600 to-teal-500 hover:scale-105 transition-transform duration-300 shadow-md"
+            className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-slate-900 bg-violet-600 py-3 text-sm font-black text-white shadow-[3px_3px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 hover:bg-violet-500"
           >
-            Send Message
+            <FaPaperPlane className="text-xs" />
+            Launch message
           </button>
         </form>
-      </div>
-      
-      {/* Social Media Links */}
-      <div className="flex space-x-6 mt-8">
-        <a href="https://github.com/Moudjib16" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-all text-3xl">
-          <FaGithub />
-        </a>
-        <a href="https://instagram.com/moujiiiiiiii" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-pink-400 transition-all text-3xl">
-          <FaInstagram />
-        </a>
-        <a href="https://discord.gg/Wele_Welo_Weli" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-indigo-400 transition-all text-3xl">
-          <FaDiscord />
-        </a>
+
+        <div className="mt-6 flex justify-center gap-3">
+          <a href="https://github.com/Moudjib16" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-slate-900 bg-white text-lg text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 hover:text-slate-900">
+            <FaGithub />
+          </a>
+          <a href="https://www.instagram.com/moujiiiiiiii" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-slate-900 bg-white text-lg text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 hover:text-rose-500">
+            <FaInstagram />
+          </a>
+          <a href="https://discord.gg/Wele_Welo_Weli" target="_blank" rel="noopener noreferrer" aria-label="Discord" className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-slate-900 bg-white text-lg text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 hover:text-violet-600">
+            <FaDiscord />
+          </a>
+        </div>
       </div>
     </div>
   );

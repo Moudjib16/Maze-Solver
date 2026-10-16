@@ -1,95 +1,78 @@
-// PathTables.jsx
-import React from 'react';
-import { FaSearch, FaRoute, FaChartBar } from 'react-icons/fa';
-
 const PathTables = ({ explored, path }) => {
   return (
-    <div className="space-y-6">
-      {/* Stats Summary */}
-      <div className="bg-gray-800 p-4 rounded-xl shadow-md">
-        <div className="flex flex-col sm:flex-row gap-4 justify-around">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 text-yellow-400 mb-1">
-              <FaSearch className="text-lg" />
-              <span className="text-sm font-semibold">Explored Nodes</span>
-            </div>
-            <p className="text-2xl font-bold">{explored.length}</p>
-          </div>
-          
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 text-green-400 mb-1">
-              <FaRoute className="text-lg" />
-              <span className="text-sm font-semibold">Path Length</span>
-            </div>
-            <p className="text-2xl font-bold">{path.length}</p>
-          </div>
+    <div className="space-y-4">
+      {/* Scoreboard */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rotate-[-1deg] rounded-3xl border-2 border-slate-900 bg-amber-200 p-4 text-center shadow-[3px_3px_0_0_#0f172a]">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-700">Tiles sniffed</p>
+          <p className="mt-1 font-mono text-3xl font-black">{explored.length}</p>
+        </div>
+        <div className="rotate-[1deg] rounded-3xl border-2 border-slate-900 bg-emerald-300 p-4 text-center shadow-[3px_3px_0_0_#0f172a]">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-700">Escape steps</p>
+          <p className="mt-1 font-mono text-3xl font-black">{path.length}</p>
         </div>
       </div>
 
-      {/* Detailed Tables */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Explored Path Table */}
-        <div className="bg-gray-800 p-4 rounded-xl shadow-md">
-          <div className="flex items-center gap-2 mb-4 text-yellow-400">
-            <FaSearch className="text-xl" />
-            <h2 className="text-xl font-bold">Explored Path</h2>
+      {/* Tables */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="overflow-hidden rounded-3xl border-2 border-slate-900 bg-white shadow-[3px_3px_0_0_#0f172a]">
+          <div className="border-b-2 border-slate-900 bg-sky-200 px-4 py-2.5">
+            <h2 className="text-sm font-black">Sniff order</h2>
           </div>
-          <div className="max-h-96 overflow-y-auto thin-scrollbar">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-sm text-gray-400 border-b border-gray-700">
-                  <th className="pb-2">Step</th>
-                  <th className="pb-2">Coordinates</th>
+          <div className="thin-scrollbar max-h-80 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500">
+                  <th className="px-4 py-2">#</th>
+                  <th className="px-4 py-2">Tile</th>
                 </tr>
               </thead>
               <tbody>
                 {explored.map((cell, index) => (
-                  <tr 
-                    key={index} 
-                    className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
-                  >
-                    <td className="py-2 text-sm font-mono">{index + 1}</td>
-                    <td className="py-2 text-sm font-mono">[{cell[0]}, {cell[1]}]</td>
+                  <tr key={index} className="border-b border-slate-100 last:border-0 odd:bg-amber-50/50">
+                    <td className="px-4 py-1.5 font-mono text-[13px] font-bold text-slate-500">{index + 1}</td>
+                    <td className="px-4 py-1.5 font-mono text-[13px] font-bold">[{cell[0]}, {cell[1]}]</td>
                   </tr>
                 ))}
+                {explored.length === 0 && (
+                  <tr>
+                    <td colSpan={2} className="px-4 py-6 text-center text-sm font-medium text-slate-400">
+                      Press GO and watch the trail grow here.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Solution Path Table */}
-        <div className="bg-gray-800 p-4 rounded-xl shadow-md">
-          <div className="flex items-center gap-2 mb-4 text-green-400">
-            <FaRoute className="text-xl" />
-            <h2 className="text-xl font-bold">Solution Path</h2>
+        <div className="overflow-hidden rounded-3xl border-2 border-slate-900 bg-white shadow-[3px_3px_0_0_#0f172a]">
+          <div className="border-b-2 border-slate-900 bg-emerald-200 px-4 py-2.5">
+            <h2 className="text-sm font-black">Escape route</h2>
           </div>
           {path.length > 0 ? (
-            <div className="max-h-96 overflow-y-auto thin-scrollbar">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-sm text-gray-400 border-b border-gray-700">
-                    <th className="pb-2">Step</th>
-                    <th className="pb-2">Coordinates</th>
+            <div className="thin-scrollbar max-h-80 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-white">
+                  <tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500">
+                    <th className="px-4 py-2">#</th>
+                    <th className="px-4 py-2">Tile</th>
                   </tr>
                 </thead>
                 <tbody>
                   {path.map((cell, index) => (
-                    <tr
-                      key={index}
-                      className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
-                    >
-                      <td className="py-2 text-sm font-mono">{index + 1}</td>
-                      <td className="py-2 text-sm font-mono">[{cell[0]}, {cell[1]}]</td>
+                    <tr key={index} className="border-b border-slate-100 last:border-0 odd:bg-emerald-50/60">
+                      <td className="px-4 py-1.5 font-mono text-[13px] font-bold text-slate-500">{index + 1}</td>
+                      <td className="px-4 py-1.5 font-mono text-[13px] font-bold">[{cell[0]}, {cell[1]}]</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-32 text-gray-400">
-              <FaChartBar className="mr-2" />
-              No solution path found
-            </div>
+            <p className="px-4 py-6 text-center text-sm font-medium text-slate-400">
+              No escape yet — finish a race first!
+            </p>
           )}
         </div>
       </div>

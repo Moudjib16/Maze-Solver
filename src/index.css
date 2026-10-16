@@ -1,42 +1,59 @@
 @import 'tailwindcss';
 
 :root {
-  --color-bg: 15 23 42; /* slate-900 */
-  --color-text: 248 250 252; /* slate-50 */
-  --color-primary: 96 165 250; /* blue-400 */
-  --color-secondary: 52 211 153; /* emerald-400 */
-  --color-surface: 30 41 59; /* slate-800 */
+  --color-bg: 255 251 235; /* amber-50 */
+  --color-text: 15 23 42; /* slate-900 */
+  --color-primary: 124 58 237; /* violet-600 */
+  --color-secondary: 5 150 105; /* emerald-600 */
+  --color-surface: 255 255 255; /* white */
 }
 
 body {
-  background-color: #0f172a; /* slate-900 */
-  color: #f8fafc; /* slate-50 */
+  background-color: #fffbeb; /* amber-50 */
+  color: #0f172a;
+  font-family: ui-sans-system, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100%); }
+::selection {
+  background: #fde68a; /* amber-200 */
+  color: #0f172a;
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+/* Dotted play-mat backdrop */
+.playful-dots {
+  background-image: radial-gradient(#c4b5fd 1.2px, transparent 1.2px);
+  background-size: 18px 18px;
 }
 
-.animate-scanline {
-  animation: scanline 6s linear infinite;
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-8px) rotate(1deg); }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.96); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-float-slow {
+  animation: float-slow 5s ease-in-out infinite;
+}
+
+.animate-pop-in {
+  animation: pop-in 0.25s ease-out both;
 }
 
 .thin-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 .thin-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #4a5568;
-  border-radius: 3px;
+  background-color: #c4b5fd;
+  border-radius: 999px;
 }
 
 .thin-scrollbar::-webkit-scrollbar-track {
-  background-color: #2d3748;
+  background-color: #fef3c7;
 }

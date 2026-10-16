@@ -1,115 +1,183 @@
 import { useState } from 'react';
-import { FaCode, FaBook, FaCogs } from 'react-icons/fa';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const algorithms = [
   {
     id: 'bfs',
-    name: 'Breadth-First Search (BFS)',
+    name: 'BFS',
+    title: 'The Perfectionist',
+    badge: 'bg-sky-400',
     complexity: 'O(V + E)',
-    description: 'BFS explores all neighbor nodes at the current depth before moving deeper.',
-    code: `function bfs(graph, start) {
-  let queue = [start];
-  let visited = new Set();
-  visited.add(start);
-  
+    path: 'Shortest path',
+    description: 'BFS sniffs every tile layer by layer, starting from home base. Because it never skips a closer tile, the first time it reaches the treat it has found the shortest route.',
+    when: 'Pick BFS when you want the guaranteed shortest escape.',
+    code: `function bfs(maze, start, goal) {
+  const queue = [start];
+  const visited = new Set([start.toString()]);
+  const parent = { [start]: null };
+
   while (queue.length > 0) {
-    let node = queue.shift();
-    console.log(node);
-    
-    for (let neighbor of graph[node]) {
-      if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        queue.push(neighbor);
+    const current = queue.shift();
+    if (isGoal(current, goal)) return buildPath(parent, current);
+
+    for (const next of neighbors(current, maze)) {
+      if (!visited.has(next.toString())) {
+        visited.add(next.toString());
+        parent[next] = current;
+        queue.push(next);
       }
     }
   }
+  return null; // no way out
 }`
   },
   {
     id: 'dfs',
-    name: 'Depth-First Search (DFS)',
+    name: 'DFS',
+    title: 'The Daredevil',
+    badge: 'bg-amber-400',
     complexity: 'O(V + E)',
-    description: 'DFS explores as far as possible along each branch before backtracking.',
-    code: `function dfs(graph, start, visited = new Set()) {
-  if (visited.has(start)) return;
-  visited.add(start);
-  console.log(start);
-  
-  for (let neighbor of graph[start]) {
-    dfs(graph, neighbor, visited);
+    path: 'Any path',
+    description: 'DFS charges down each tunnel as far as it goes before backtracking. It remembers little and runs fast, but the escape it finds can be a scenic detour.',
+    when: 'Pick DFS to watch a bold, loopy adventure — not for the shortest route.',
+    code: `function dfs(maze, start, goal) {
+  const stack = [start];
+  const visited = new Set([start.toString()]);
+  const parent = { [start]: null };
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (isGoal(current, goal)) return buildPath(parent, current);
+
+    for (const next of neighbors(current, maze)) {
+      if (!visited.has(next.toString())) {
+        visited.add(next.toString());
+        parent[next] = current;
+        stack.push(next);
+      }
+    }
   }
+  return null; // no way out
 }`
   },
   {
     id: 'a-star',
-    name: 'A* (A-Star)',
+    name: 'A*',
+    title: 'The Navigator',
+    badge: 'bg-violet-500',
     complexity: 'O(E)',
-    description: 'A* finds the shortest path by combining the benefits of Dijkstra and heuristics.',
-    code: `function aStar(start, goal, graph, heuristic) {
-  let openSet = [start];
-  let cameFrom = new Map();
-  let gScore = new Map();
-  let fScore = new Map();
-  
-  gScore.set(start, 0);
-  fScore.set(start, heuristic(start, goal));
-  
-  while (openSet.length > 0) {
-    let current = openSet.shift();
-    if (current === goal) return reconstructPath(cameFrom, current);
-    
-    for (let neighbor of graph[current]) {
-      let tentativeGScore = gScore.get(current) + graph[current][neighbor];
-      if (tentativeGScore < (gScore.get(neighbor) || Infinity)) {
-        cameFrom.set(neighbor, current);
-        gScore.set(neighbor, tentativeGScore);
-        fScore.set(neighbor, tentativeGScore + heuristic(neighbor, goal));
-        openSet.push(neighbor);
+    path: 'Shortest path',
+    description: 'A* carries a compass: the Manhattan distance to the goal. It adds steps-taken (g) plus estimated steps-left (h) and always explores the most promising tile next.',
+    when: 'Pick A* as your everyday racer — shortest path with less sniffing around.',
+    code: `function aStar(maze, start, goal) {
+  const open = [start];
+  const g = { [start]: 0 };
+  const parent = { [start]: null };
+  const h = (cell) => manhattan(cell, goal);
+
+  while (open.length > 0) {
+    open.sort((a, b) => (g[a] + h(a)) - (g[b] + h(b)));
+    const current = open.shift();
+    if (isGoal(current, goal)) return buildPath(parent, current);
+
+    for (const next of neighbors(current, maze)) {
+      const cost = g[current] + 1;
+      if (!(next in g) || cost < g[next]) {
+        parent[next] = current;
+        g[next] = cost;
+        if (!open.some((c) => c.toString() === next.toString())) open.push(next);
       }
     }
   }
+  return null; // no way out
 }`
   }
 ];
 
 export default function Documentation() {
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState(algorithms[0]);
+  const [selected, setSelected] = useState(algorithms[0]);
 
   return (
-    <div className="flex min-h-screen bg-gray-900 text-white">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 p-6 mt-16">
-        <h2 className="text-xl font-bold mb-6">Documentation</h2>
-        <nav className="space-y-4">
-          {algorithms.map((algo) => (
-            <button
-              key={algo.id}
-              className={`w-full text-left p-3 rounded-md ${selectedAlgorithm.id === algo.id ? 'bg-blue-600' : 'hover:bg-gray-700'}`}
-              onClick={() => setSelectedAlgorithm(algo)}
-            >
-              {algo.name}
-            </button>
-          ))}
-        </nav>
-      </aside>
+    <div className="bg-amber-50 text-slate-900">
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <p className="inline-block rotate-[-1deg] rounded-full border-2 border-slate-900 bg-violet-300 px-3 py-1 text-xs font-extrabold uppercase tracking-widest shadow-[2px_2px_0_0_#0f172a]">
+          Field guide
+        </p>
+        <h1 className="mt-3 text-3xl font-black tracking-tight">How the racers think</h1>
+        <p className="mt-1 max-w-2xl text-sm font-medium text-slate-600">
+          The same three pals from the home page, explained like a game manual.
+        </p>
 
-      {/* Content Area */}
-      <main className="flex-1 p-8">
-        <h1 className="text-4xl font-bold mb-4 flex items-center gap-2 mt-16">
-          <FaBook /> {selectedAlgorithm.name}
-        </h1>
-        <p className="text-gray-300 mb-4">Time Complexity: <span className="text-blue-400">{selectedAlgorithm.complexity}</span></p>
-        <p className="text-gray-400 mb-6">{selectedAlgorithm.description}</p>
-        
-        <h2 className="text-2xl font-semibold mb-2 flex items-center gap-2">
-          <FaCode /> Implementation
-        </h2>
-        <SyntaxHighlighter language="javascript" style={atomDark} className="rounded-lg">
-          {selectedAlgorithm.code}
-        </SyntaxHighlighter>
-      </main>
+        <div className="mt-6 grid items-start gap-6 md:grid-cols-4">
+          <aside className="rounded-3xl border-2 border-slate-900 bg-white p-2 shadow-[3px_3px_0_0_#0f172a] md:sticky md:top-20">
+            {algorithms.map((algo) => (
+              <button
+                key={algo.id}
+                onClick={() => setSelected(algo)}
+                className={`mb-1 flex w-full items-center gap-2.5 rounded-2xl border-2 px-3 py-2.5 text-left transition-transform last:mb-0 hover:-translate-y-0.5 ${
+                  selected.id === algo.id
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-transparent text-slate-700 hover:border-slate-900 hover:bg-amber-100'
+                }`}
+              >
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-slate-900 ${algo.badge} font-mono text-xs font-black text-slate-900`}>
+                  {algo.name}
+                </span>
+                <span>
+                  <span className="block text-sm font-extrabold">{algo.title}</span>
+                  <span className={`block font-mono text-xs font-bold ${selected.id === algo.id ? 'text-white/70' : 'text-slate-500'}`}>
+                    {algo.complexity} · {algo.path}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </aside>
+
+          <article className="md:col-span-3">
+            <div className="rounded-3xl border-2 border-slate-900 bg-white p-5 shadow-[3px_3px_0_0_#0f172a] md:p-6">
+              <div className="flex items-center gap-2">
+                <span className={`flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-slate-900 ${selected.badge} font-mono text-xs font-black text-slate-900`}>
+                  {selected.name}
+                </span>
+                <h2 className="text-xl font-black">{selected.title}</h2>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-900 bg-amber-100 px-3 py-2">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Speed class</p>
+                  <p className="font-mono text-sm font-black">{selected.complexity}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-900 bg-emerald-100 px-3 py-2">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Prize</p>
+                  <p className="text-sm font-black">{selected.path}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-900 bg-violet-100 px-3 py-2">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Nickname</p>
+                  <p className="font-mono text-sm font-black">{selected.name}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">{selected.description}</p>
+              <p className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 text-sm font-bold text-slate-700">{selected.when}</p>
+            </div>
+
+            <div className="mt-4 overflow-hidden rounded-3xl border-2 border-slate-900 shadow-[3px_3px_0_0_#0f172a]">
+              <div className="flex items-center gap-1.5 border-b-2 border-slate-900 bg-slate-900 px-5 py-2.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                <h3 className="ml-2 font-mono text-xs font-bold text-white/70">racer-brain.js</h3>
+              </div>
+              <SyntaxHighlighter
+                language="javascript"
+                style={vscDarkPlus}
+                customStyle={{ margin: 0, fontSize: 13 }}
+              >
+                {selected.code}
+              </SyntaxHighlighter>
+            </div>
+          </article>
+        </div>
+      </div>
     </div>
   );
 }

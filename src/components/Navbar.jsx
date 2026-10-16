@@ -1,52 +1,62 @@
-import { Link } from "react-router-dom";
-import { FaGithub, FaInstagram, FaDiscord } from "react-icons/fa";
+import { Link, NavLink } from "react-router-dom";
+import { FaGithub } from "react-icons/fa";
 
 export default function Navbar() {
   return (
-    <nav className="fixed top-0 left-0 w-full bg-slate-900/80 backdrop-blur-md shadow-md text-white py-4 px-6 z-50">
-      <div className="container mx-auto flex justify-between items-center">
-        {/* Logo */}
-        <Link to="/" className="text-2xl font-bold tracking-wide bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-          Maze Solver
+    <header className="sticky top-0 z-50 border-b-2 border-slate-900 bg-amber-50/95 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <Link to="/" className="group flex items-center gap-2.5">
+          <span className="grid h-9 w-9 rotate-3 grid-cols-3 gap-px rounded-xl border-2 border-slate-900 bg-gradient-to-br from-violet-500 via-fuchsia-500 to-amber-400 p-1.5 shadow-[2px_2px_0_0_#0f172a] transition-transform group-hover:rotate-6" aria-hidden="true">
+            <span className="rounded-[2px] bg-white" />
+            <span className="rounded-[2px] bg-white" />
+            <span className="rounded-[2px] bg-transparent" />
+            <span className="rounded-[2px] bg-transparent" />
+            <span className="rounded-[2px] bg-white" />
+            <span className="rounded-[2px] bg-white" />
+            <span className="rounded-[2px] bg-white" />
+            <span className="rounded-[2px] bg-transparent" />
+            <span className="rounded-[2px] bg-white" />
+          </span>
+          <span className="text-base font-extrabold tracking-tight text-slate-900">
+            Maze<span className="text-violet-600"> Runner</span>
+          </span>
         </Link>
 
-        {/* Navigation Links */}
-        <div className="hidden md:flex space-x-8 text-lg">
-          <NavItem to="/" text="Home" />
-          <NavItem to="/maze" text="Maze Solver" />
-          <NavItem to="/docs" text="Documentation" />
-          <NavItem to="/contact" text="Contact" />
-        </div>
+        <nav className="flex items-center gap-1 text-sm font-semibold">
+          <NavItem to="/" text="Home" dot="bg-sky-400" />
+          <NavItem to="/maze" text="Play" dot="bg-emerald-400" />
+          <NavItem to="/docs" text="Learn" dot="bg-amber-400" />
+          <NavItem to="/contact" text="Say hi" dot="bg-rose-400" />
+        </nav>
 
-        {/* Social Icons */}
-        <div className="flex space-x-4 text-xl">
-          <SocialIcon link="https://github.com/Moudjib16" icon={<FaGithub />} />
-          <SocialIcon link="https://www.instagram.com/moujiiiiiiii" icon={<FaInstagram />} />
-          <SocialIcon link="https://discord.gg/Wele_Welo_Weli" icon={<FaDiscord />} />
-        </div>
+        <a
+          href="https://github.com/Moudjib16/AI-assignment"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 rounded-full border-2 border-slate-900 bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white shadow-[2px_2px_0_0_#c4b5fd] transition-transform hover:-translate-y-0.5"
+        >
+          <FaGithub className="text-sm" />
+          <span className="hidden sm:inline">GitHub</span>
+        </a>
       </div>
-    </nav>
+    </header>
   );
 }
 
-function NavItem({ to, text }) {
+function NavItem({ to, text, dot }) {
   return (
-    <Link to={to} className="relative group">
-      <span className="text-slate-300 group-hover:text-white transition duration-300">{text}</span>
-      <span className="absolute left-0 bottom-0 w-0 h-0.5 bg-blue-400 transition-all duration-300 group-hover:w-full"></span>
-    </Link>
-  );
-}
-
-function SocialIcon({ link, icon }) {
-  return (
-    <a
-      href={link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="hover:text-blue-400 transition duration-300"
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 transition-all ${
+          isActive
+            ? "border-slate-900 bg-white shadow-[2px_2px_0_0_#0f172a]"
+            : "border-transparent text-slate-600 hover:border-slate-900 hover:bg-white hover:text-slate-900 hover:shadow-[2px_2px_0_0_#0f172a]"
+        }`
+      }
     >
-      {icon}
-    </a>
+      <span className={`inline-block h-2 w-2 rounded-full ${dot}`} />
+      {text}
+    </NavLink>
   );
 }

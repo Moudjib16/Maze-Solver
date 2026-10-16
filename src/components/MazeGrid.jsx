@@ -5,32 +5,34 @@ import { solveMazeAStar } from "../algorithms/aStar";
 import { maze as defaultMaze, start as defaultStart, goal as defaultGoal, generateRandomMaze } from "../utils/maze";
 
 const SPEED_OPTIONS = [
-  { label: "0.5x", value: 0.5 },
-  { label: "1x", value: 1 },
-  { label: "2x", value: 2 },
-  { label: "4x", value: 4 },
+  { label: "Chill 0.5x", value: 0.5 },
+  { label: "Normal 1x", value: 1 },
+  { label: "Zippy 2x", value: 2 },
+  { label: "Zoom 4x", value: 4 },
 ];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Maze cell component — fluid size so large mazes don't overflow on mobile
+// Chunky arcade cells. Start/goal show a letter.
 const MazeCell = React.memo(({ isWall, isStart, isGoal, isExplored, isPath }) => {
-  let bgColor = "bg-white";
-  if (isWall) bgColor = "bg-gray-800";
-  else if (isStart) bgColor = "bg-blue-500";
-  else if (isGoal) bgColor = "bg-red-500";
-  else if (isPath) bgColor = "bg-green-500";
-  else if (isExplored) bgColor = "bg-yellow-300";
+  let cls = "bg-white border-slate-300";
+  let label = null;
+  if (isWall) cls = "bg-slate-900 border-slate-900";
+  else if (isStart) { cls = "bg-sky-500 border-slate-900"; label = "S"; }
+  else if (isGoal) { cls = "bg-rose-500 border-slate-900"; label = "G"; }
+  else if (isPath) cls = "bg-emerald-400 border-slate-900";
+  else if (isExplored) cls = "bg-amber-200 border-amber-300";
   return (
     <div
-      className={`aspect-square w-full rounded-[2px] border border-gray-700/40 transition-colors duration-200 ${bgColor}`}
-    ></div>
+      className={`flex aspect-square w-full items-center justify-center rounded-md border-2 text-[10px] font-black text-white transition-colors duration-150 ${cls}`}
+      style={label ? {} : undefined}
+    >
+      {label && <span className="text-slate-900">{label}</span>}
+    </div>
   );
 });
 
 const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, setRunning }) => {
-  // State for current maze and its start/goal points.
-  // By default, use the predefined maze and its start/goal.
   const [currentMaze, setCurrentMaze] = useState(defaultMaze);
   const [currentStart, setCurrentStart] = useState(defaultStart);
   const [currentGoal, setCurrentGoal] = useState(defaultGoal);
@@ -39,13 +41,12 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const [solveMs, setSolveMs] = useState(null);
   const runIdRef = useRef(0);
 
-  // O(1) lookups — old code used explored.some()/path.some() per cell
+  // O(1) lookups for cell rendering
   const exploredSet = useMemo(() => new Set(explored.map(([r, c]) => `${r},${c}`)), [explored]);
   const pathSet = useMemo(() => new Set(path.map(([r, c]) => `${r},${c}`)), [path]);
   const cols = currentMaze[0].length;
 
-  // Batched animation: one setState per chunk instead of per cell.
-  // Checks runId so Reset / re-run cancels an in-flight animation.
+  // Batched animation: one setState per chunk. runId cancels stale runs.
   const animateArray = async (arr, setter, delay, chunkSize, runId) => {
     setter([]);
     for (let i = chunkSize; i <= arr.length; i += chunkSize) {
@@ -58,7 +59,6 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     return true;
   };
 
-  // Run the selected algorithm on the current maze
   const runAlgorithm = async () => {
     if (running) return;
     const runId = ++runIdRef.current;
@@ -112,7 +112,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   };
 
   const handleReset = () => {
-    ++runIdRef.current; // cancel any in-flight animation
+    ++runIdRef.current;
     setExplored([]);
     setPath([]);
     setStatus("idle");
@@ -120,122 +120,118 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     setRunning(false);
   };
 
-  // Generate a random maze (e.g., 21x21) ensuring it's solvable,
-  // and update the start and goal to fixed positions (e.g., [1,1] and [rows-2, cols-2])
   const handleGenerateRandomMaze = () => {
     if (running) return;
-    ++runIdRef.current; // cancel any in-flight animation
-    const rows = 21; // New maze rows (should be odd for proper generation)
-    const cols = 21; // New maze columns (should be odd for proper generation)
-    const newMaze = generateRandomMaze(rows, cols);
+    ++runIdRef.current;
+    const rows = 21;
+    const colCount = 21;
+    const newMaze = generateRandomMaze(rows, colCount);
     setCurrentMaze(newMaze);
     setExplored([]);
     setPath([]);
-    // For random maze, set start and goal to fixed positions
     setCurrentStart([1, 1]);
-    setCurrentGoal([rows - 2, cols - 2]);
+    setCurrentGoal([rows - 2, colCount - 2]);
     setStatus("idle");
     setSolveMs(null);
   };
 
-  const statusBanner = () => {
-    if (status === "running") {
-      return (
-        <div className="mb-4 text-center text-sm font-medium text-blue-300 animate-pulse" role="status">
-          Visualizing {algorithm} — {explored.length} nodes explored…
-        </div>
-      );
-    }
-    if (status === "done") {
-      return (
-        <div className="mb-4 text-center text-sm font-medium text-green-300" role="status">
-          Path found: {path.length} steps, {explored.length} explored
-          {solveMs !== null ? ` in ${solveMs} ms` : ""}
-        </div>
-      );
-    }
-    if (status === "no-path") {
-      return (
-        <div className="mb-4 text-center text-sm font-medium text-red-300" role="alert">
-          No path found — the goal is unreachable in this maze.
-        </div>
-      );
-    }
-    if (status === "error") {
-      return (
-        <div className="mb-4 text-center text-sm font-medium text-red-300" role="alert">
-          Something went wrong while running the algorithm.
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
-    <div className="bg-gray-900 p-4 rounded-xl shadow-lg">
-      {statusBanner()}
-      {/* Maze Grid Rendering — fluid columns so 21x21 fits on mobile */}
-      <div className="overflow-x-auto mb-4">
+    <div className="animate-pop-in rounded-3xl border-2 border-slate-900 bg-white shadow-[4px_4px_0_0_#0f172a]">
+      {/* Status sticker */}
+      <div className="border-b-2 border-slate-900 bg-amber-100 px-5 py-3 text-sm font-bold" aria-live="polite">
+        {status === "running" && (
+          <p>
+            {algorithm} is racing!
+            <span className="text-slate-600"> — {explored.length} tiles sniffed…</span>
+          </p>
+        )}
+        {status === "done" && (
+          <p>
+            <span className="rounded-full border border-slate-900 bg-emerald-300 px-2 py-0.5 text-xs font-black">ESCAPED!</span>{" "}
+            {path.length} steps · {explored.length} explored
+            {solveMs !== null ? ` · ${solveMs} ms` : ""}
+          </p>
+        )}
+        {status === "no-path" && (
+          <p className="text-rose-700" role="alert">Oh no — this maze has no way out. Roll a new one!</p>
+        )}
+        {status === "error" && (
+          <p className="text-rose-700" role="alert">Yikes, the racer tripped. Try again!</p>
+        )}
+        {(status === "idle" || status === "cancelled") && (
+          <p className="text-slate-600">
+            {currentMaze.length}×{cols} playground — press GO to let {algorithm} loose!
+          </p>
+        )}
+      </div>
+
+      {/* Grid */}
+      <div className="overflow-x-auto px-5 py-5">
         <div
-          className="grid gap-[2px] mx-auto w-full"
+          className="playful-dots grid w-full gap-1 rounded-2xl border-2 border-slate-900 bg-violet-100 p-2.5"
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-            maxWidth: cols > 15 ? "640px" : "420px",
+            maxWidth: cols > 15 ? "620px" : "400px",
+            margin: "0 auto",
           }}
         >
           {currentMaze.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
               const isStart = rowIndex === currentStart[0] && colIndex === currentStart[1];
               const isGoal = rowIndex === currentGoal[0] && colIndex === currentGoal[1];
-              const isWall = cell === 1;
               const key = `${rowIndex},${colIndex}`;
-              const isExplored = exploredSet.has(key);
-              const isPath = pathSet.has(key);
               return (
                 <MazeCell
                   key={`${rowIndex}-${colIndex}`}
-                  isWall={isWall}
+                  isWall={cell === 1}
                   isStart={isStart}
                   isGoal={isGoal}
-                  isExplored={isExplored}
-                  isPath={isPath}
+                  isExplored={exploredSet.has(key)}
+                  isPath={pathSet.has(key)}
                 />
               );
             })
           )}
         </div>
+        <div className="mx-auto mt-3 flex max-w-[620px] flex-wrap gap-2 text-[11px] font-bold text-slate-600">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-900" /> Wall</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-200" /> Sniffed</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" /> Escape route</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-sky-500" /> Start</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-rose-500" /> Treat (goal)</span>
+        </div>
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center justify-center gap-3 mb-2">
+      <div className="flex flex-wrap items-center gap-2 border-t-2 border-slate-900 bg-orange-50 px-5 py-3 rounded-b-3xl">
         <button
           onClick={runAlgorithm}
           disabled={running}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-full border-2 border-slate-900 bg-emerald-400 px-5 py-2 text-sm font-black text-slate-900 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {running ? "Visualizing..." : "Start Visualization"}
+          {running ? "Racing…" : "GO!"}
         </button>
         <button
           onClick={handleGenerateRandomMaze}
           disabled={running}
-          className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-full border-2 border-slate-900 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Generate Random Maze
+          New maze
         </button>
         <button
           onClick={handleReset}
           disabled={running && explored.length === 0 && path.length === 0}
-          className="px-6 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-500 transition-all duration-300 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-full px-3 py-2 text-sm font-black text-slate-500 transition-colors hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Reset
         </button>
-        <label className="flex items-center gap-2 text-sm text-slate-300">
-          Speed:
+        <label className="ml-auto flex items-center gap-2 text-sm font-bold text-slate-600">
+          Pace
           <select
             value={speed}
             onChange={(e) => setSpeed(Number(e.target.value))}
             disabled={running}
-            className="px-2 py-1 bg-black rounded-lg border border-slate-700 focus:outline-none text-sm disabled:opacity-50"
+            className="rounded-full border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-bold focus:outline-none disabled:opacity-50"
           >
             {SPEED_OPTIONS.map((opt) => (
               <option key={opt.label} value={opt.value}>
