@@ -7,6 +7,7 @@ export default function Contact() {
     email: '',
     message: ''
   });
+  const [sent, setSent] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -14,8 +15,10 @@ export default function Contact() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert('Message sent successfully!');
+    // Demo form — no backend wired. Show inline confirmation instead of alert().
+    setSent(true);
     setFormData({ name: '', email: '', message: '' });
+    setTimeout(() => setSent(false), 5000);
   };
 
   const inputCls =
@@ -33,6 +36,11 @@ export default function Contact() {
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-3xl border-2 border-slate-900 bg-white p-5 shadow-[4px_4px_0_0_#0f172a] md:p-6">
+          {sent && (
+            <p role="status" className="rounded-2xl border-2 border-slate-900 bg-emerald-300 px-3 py-2 text-sm font-black">
+              Message noted! (Demo form — for anything urgent open a GitHub issue.)
+            </p>
+          )}
           <div>
             <label htmlFor="name" className="mb-1 block text-sm font-extrabold">Your name</label>
             <input
@@ -85,7 +93,7 @@ export default function Contact() {
         </form>
 
         <div className="mt-6 flex justify-center gap-3">
-          <a href="https://github.com/Moudjib16" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-slate-900 bg-white text-lg text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 hover:text-slate-900">
+          <a href="https://github.com/Moudjib16/Maze-Solver" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository" className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-slate-900 bg-white text-lg text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 hover:text-slate-900">
             <FaGithub />
           </a>
           <a href="https://www.instagram.com/moujiiiiiiii" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-slate-900 bg-white text-lg text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 hover:text-rose-500">

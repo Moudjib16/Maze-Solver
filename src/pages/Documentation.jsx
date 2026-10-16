@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const algorithms = [
   {
@@ -265,13 +263,9 @@ export default function Documentation() {
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
                 <h3 className="ml-2 font-mono text-xs font-bold text-white/70">racer-brain.js</h3>
               </div>
-              <SyntaxHighlighter
-                language="javascript"
-                style={vscDarkPlus}
-                customStyle={{ margin: 0, fontSize: 13 }}
-              >
-                {selected.code}
-              </SyntaxHighlighter>
+              <pre className="thin-scrollbar m-0 max-h-96 overflow-auto bg-slate-900 p-4 font-mono text-[13px] leading-relaxed text-violet-100">
+                <code>{selected.code}</code>
+              </pre>
             </div>
           </article>
         </div>

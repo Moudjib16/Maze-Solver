@@ -296,6 +296,13 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           throw new Error("Invalid algorithm");
       }
       setSolveMs(Math.round(performance.now() - t0));
+      // Reduced-motion: skip the animated reveal, show the final state.
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        setExplored(result.explored);
+        setPath(result.solutionPath ?? []);
+        setStatus(result.solutionPath ? "done" : "no-path");
+        return;
+      }
       const finished = await animateArray(result.explored, setExplored, runId, 80, 40);
       if (!finished) {
         setStatus("cancelled");
