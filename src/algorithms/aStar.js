@@ -1,14 +1,6 @@
-import { numRows, numCols } from "../utils/maze";
-
-// Heuristic table (adjust the values as needed)
-const heuristicTable = {
-  "0,0": 8, "0,2": 6, "0,3": 6, "0,4": 7, "0,5": 4, "0,6": 12, "0,7": 7, "0,8": 15, "0,9": 18, 
-  "1,0": 6, "1,2": 8, "1,5": 6, "1,9": 5, "2,0": 6, "2,1": 4, "2,2": 8, "2,5": 6, "2,7": 3, 
-  "2,8": 5, "2,9": 3, "3,0": 5, "3,4": 2, "3,7": 1, "3,9": 0 // Goal at [3,9]
-};
-
-function heuristic(coord) {
-  return heuristicTable[coord.toString()] ?? Infinity;
+// Manhattan distance — admissible for 4-directional grid movement
+function heuristic(coord, goal) {
+  return Math.abs(coord[0] - goal[0]) + Math.abs(coord[1] - goal[1]);
 }
 
 export function solveMazeAStar(maze, start, goal) {
@@ -16,7 +8,7 @@ export function solveMazeAStar(maze, start, goal) {
   const explored = [];
   const parents = {};
   const gScores = { [start.toString()]: 0 };
-  const fScores = { [start.toString()]: heuristic(start) };
+  const fScores = { [start.toString()]: heuristic(start, goal) };
   
   parents[start.toString()] = null;
   
@@ -37,7 +29,7 @@ export function solveMazeAStar(maze, start, goal) {
       if (!(key in gScores) || tentativeGScore < gScores[key]) {
         parents[key] = current;
         gScores[key] = tentativeGScore;
-        fScores[key] = tentativeGScore + heuristic(neighbor);
+        fScores[key] = tentativeGScore + heuristic(neighbor, goal);
         if (!openList.some(cell => cell.toString() === key)) {
           openList.push(neighbor);
         }
