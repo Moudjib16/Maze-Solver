@@ -68,7 +68,7 @@ export default function Home() {
                 How they think
               </Link>
               <a
-                href="https://github.com/Moudjib16/AI-assignment"
+                href="https://github.com/Moudjib16/Maze-Solver"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-2 py-3 text-sm font-bold text-slate-600 transition-colors hover:text-slate-900"
