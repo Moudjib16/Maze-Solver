@@ -85,59 +85,135 @@ export function getDefaultGoal() {
 }
 
 // In src/utils/maze.js
-export function generateRandomMaze(rows, cols, loopRatio = 0) {
-  // Ensure rows and cols are odd numbers for proper maze generation
-  if (rows % 2 === 0) rows++;
-  if (cols % 2 === 0) cols++;
+// Seeded RNG utilities — mulberry32 is small, fast, and reproducible.
+// `makeRng(seed)` accepts a number or string; undefined/null falls back to
+// Math.random (unseeded). `randomSeed()` mints a shareable numeric seed.
+export function hashSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
 
-  const maze = Array.from({ length: rows }, () => Array(cols).fill(1));
+export function makeRng(seed) {
+  if (seed === undefined || seed === null || seed === "") return Math.random;
+  const n = typeof seed === "number" ? seed : hashSeed(String(seed));
+  return mulberry32(n);
+}
 
+export function randomSeed() {
+  return Math.floor(Math.random() * 2147483647);
+}
+
+function shuffleFisherYates(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function randomOdd(rng, max) {
+  // Random odd in [1, max-2] (max is odd). max>=5 guaranteed by caller.
+  const half = Math.floor(max / 2);
+  return Math.floor(rng() * half) * 2 + 1;
+}
+
+function carveDFS(grid, rows, cols, rng, startR, startC) {
   function carve(r, c) {
-    maze[r][c] = 0;
-    const directions = [
-      [-2, 0], [2, 0], [0, -2], [0, 2]
-    ].sort(() => Math.random() - 0.5);
-
-    for (const [dr, dc] of directions) {
+    grid[r][c] = 0;
+    const dirs = shuffleFisherYates([[-2, 0], [2, 0], [0, -2], [0, 2]], rng);
+    for (const [dr, dc] of dirs) {
       const nr = r + dr, nc = c + dc;
-      if (nr > 0 && nr < rows - 1 && nc > 0 && nc < cols - 1 && maze[nr][nc] === 1) {
-        maze[r + dr / 2][c + dc / 2] = 0; // remove wall between
+      if (nr > 0 && nr < rows - 1 && nc > 0 && nc < cols - 1 && grid[nr][nc] === 1) {
+        grid[r + dr / 2][c + dc / 2] = 0; // remove wall between
         carve(nr, nc);
       }
     }
   }
+  carve(startR, startC);
+}
 
-  // Start carving from a random odd cell (clamped in-bounds)
-  const startRow = Math.floor(Math.random() * Math.floor(rows / 2)) * 2 + 1;
-  const startCol = Math.floor(Math.random() * Math.floor(cols / 2)) * 2 + 1;
-  carve(startRow, startCol);
+// Randomized Prim's: grows from one cell, always expanding a random frontier
+// wall. Produces mazes with many short dead-ends (vs DFS long corridors).
+function carvePrim(grid, rows, cols, rng, startR, startC) {
+  const inBoundsOdd = (r, c) => r > 0 && r < rows - 1 && c > 0 && c < cols - 1;
+  const frontier = [];
+  const inFrontier = new Set();
+  const addFrontier = (r, c) => {
+    const k = `${r},${c}`;
+    if (!inFrontier.has(k)) {
+      inFrontier.add(k);
+      frontier.push([r, c]);
+    }
+  };
+  grid[startR][startC] = 0;
+  for (const [dr, dc] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) {
+    const nr = startR + dr, nc = startC + dc;
+    if (inBoundsOdd(nr, nc) && grid[nr][nc] === 1) addFrontier(nr, nc);
+  }
+  while (frontier.length > 0) {
+    const idx = Math.floor(rng() * frontier.length);
+    const [fr, fc] = frontier.splice(idx, 1)[0];
+    inFrontier.delete(`${fr},${fc}`);
+    if (grid[fr][fc] === 0) continue;
+    // Visited (carved) neighbors two steps away
+    const carved = [];
+    for (const [dr, dc] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) {
+      const nr = fr + dr, nc = fc + dc;
+      if (inBoundsOdd(nr, nc) && grid[nr][nc] === 0) carved.push([nr, nc]);
+    }
+    if (carved.length === 0) continue;
+    const [pr, pc] = carved[Math.floor(rng() * carved.length)];
+    grid[(fr + pr) / 2][(fc + pc) / 2] = 0;
+    grid[fr][fc] = 0;
+    for (const [dr, dc] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) {
+      const nr = fr + dr, nc = fc + dc;
+      if (inBoundsOdd(nr, nc) && grid[nr][nc] === 1) addFrontier(nr, nc);
+    }
+  }
+}
+
+function braidLoops(grid, rows, cols, rng, loopRatio) {
+  const candidates = [];
+  for (let r = 1; r < rows - 1; r++) {
+    for (let c = 1; c < cols - 1; c++) {
+      if (grid[r][c] !== 1) continue;
+      const ns = grid[r - 1][c] === 0 && grid[r + 1][c] === 0;
+      const ew = grid[r][c - 1] === 0 && grid[r][c + 1] === 0;
+      // Exactly one open opposite pair: clean single loop, no big clearings
+      if ((ns ? 1 : 0) + (ew ? 1 : 0) === 1) candidates.push([r, c]);
+    }
+  }
+  shuffleFisherYates(candidates, rng);
+  const removeCount = Math.floor(candidates.length * Math.min(1, Math.max(0, loopRatio)));
+  for (let i = 0; i < removeCount; i++) {
+    grid[candidates[i][0]][candidates[i][1]] = 0;
+  }
+}
+
+export function generateRandomMaze(rows, cols, loopRatio = 0, seed = randomSeed(), generator = "dfs") {
+  // Ensure rows and cols are odd numbers for proper maze generation
+  if (rows % 2 === 0) rows++;
+  if (cols % 2 === 0) cols++;
+
+  const rng = makeRng(seed);
+  const grid = Array.from({ length: rows }, () => Array(cols).fill(1));
+
+  // Start carving from a seeded random odd cell
+  const startRow = randomOdd(rng, rows);
+  const startCol = randomOdd(rng, cols);
+  if (generator === "prim") carvePrim(grid, rows, cols, rng, startRow, startCol);
+  else carveDFS(grid, rows, cols, rng, startRow, startCol);
 
   // Set start and goal explicitly if needed
-  maze[1][1] = 0;
-  maze[rows - 2][cols - 2] = 0;
+  grid[1][1] = 0;
+  grid[rows - 2][cols - 2] = 0;
 
   // Braid pass: knock down some dead-end walls to create loops.
   // Only removes walls, so the maze stays solvable and start/goal stay open.
-  if (loopRatio > 0) {
-    const candidates = [];
-    for (let r = 1; r < rows - 1; r++) {
-      for (let c = 1; c < cols - 1; c++) {
-        if (maze[r][c] !== 1) continue;
-        const ns = maze[r - 1][c] === 0 && maze[r + 1][c] === 0;
-        const ew = maze[r][c - 1] === 0 && maze[r][c + 1] === 0;
-        // Exactly one open opposite pair: clean single loop, no big clearings
-        if ((ns ? 1 : 0) + (ew ? 1 : 0) === 1) candidates.push([r, c]);
-      }
-    }
-    // Shuffle and remove a fraction of candidates
-    for (let i = candidates.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-    }
-    const removeCount = Math.floor(candidates.length * Math.min(1, Math.max(0, loopRatio)));
-    for (let i = 0; i < removeCount; i++) {
-      maze[candidates[i][0]][candidates[i][1]] = 0;
-    }
-  }
-  return maze;
+  if (loopRatio > 0) braidLoops(grid, rows, cols, rng, loopRatio);
+  return grid;
 }

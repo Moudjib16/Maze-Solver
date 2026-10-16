@@ -5,8 +5,13 @@ import { solveMazeAStar } from "../algorithms/aStar";
 import { solveMazeDijkstra } from "../algorithms/dijkstra";
 import { solveMazeGreedy } from "../algorithms/greedy";
 import { solveMazeBidirectionalBFS } from "../algorithms/bidirectionalBfs";
-import { getDefaultMaze, getDefaultStart, getDefaultGoal, generateRandomMaze } from "../utils/maze";
+import { getDefaultMaze, getDefaultStart, getDefaultGoal, generateRandomMaze, randomSeed } from "../utils/maze";
 import { pathCost } from "../algorithms/common";
+
+const GENERATOR_OPTIONS = [
+  { value: "dfs", label: "DFS carve" },
+  { value: "prim", label: "Prim's" },
+];
 
 const SPEED_OPTIONS = [
   { label: "Chill 0.5x", value: 0.5 },
@@ -65,6 +70,9 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const [tool, setTool] = useState("wall"); // wall | erase | mud | water | start | goal
   const [compare, setCompare] = useState(null); // { rows: [{algo, steps, cost, explored, ms, ok}], bestCost, bestSteps } | null
   const [paused, setPaused] = useState(false);
+  const [seed, setSeed] = useState("");
+  const [generator, setGenerator] = useState("dfs");
+  const [shareNote, setShareNote] = useState("");
   const runIdRef = useRef(0);
   const pausedRef = useRef(false);
   const stepOnceRef = useRef(false);
@@ -78,6 +86,44 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     const up = () => { dragRef.current = null; };
     window.addEventListener("pointerup", up);
     return () => window.removeEventListener("pointerup", up);
+  }, []);
+
+  // Shareable mazes: ?seed=..&size=..&loops=..&gen=.. — same link, same maze.
+  const writeUrl = useCallback((s, size, lp, gen) => {
+    try {
+      const url = new URL(window.location.href);
+      if (s === "" || s === null || s === undefined) url.searchParams.delete("seed");
+      else url.searchParams.set("seed", String(s));
+      url.searchParams.set("size", String(size));
+      url.searchParams.set("loops", String(lp));
+      url.searchParams.set("gen", gen);
+      window.history.replaceState(null, "", url);
+    } catch { /* non-browser / file URLs: ignore */ }
+  }, []);
+
+  // On first mount, reproduce a shared maze link if present.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has("seed") && !params.has("gen") && !params.has("size")) return;
+      const urlSeed = params.get("seed") ?? "";
+      const urlGen = params.get("gen") === "prim" ? "prim" : "dfs";
+      let urlSize = Math.round(Number(params.get("size")) || 15);
+      if (urlSize % 2 === 0) urlSize += 1;
+      urlSize = Math.min(31, Math.max(5, urlSize));
+      const rawLoops = Number(params.get("loops"));
+      const urlLoops = Number.isFinite(rawLoops) ? Math.min(1, Math.max(0, rawLoops)) : 0;
+      if (urlSeed === "" && params.get("seed") !== "") return;
+      const grid = generateRandomMaze(urlSize, urlSize, urlLoops, urlSeed === "" ? randomSeed() : urlSeed, urlGen);
+      setCurrentMaze(grid);
+      setCurrentStart([1, 1]);
+      setCurrentGoal([urlSize - 2, urlSize - 2]);
+      setMazeSize(MAZE_SIZES.includes(urlSize) ? urlSize : 15);
+      setLoops(urlLoops);
+      setGenerator(urlGen);
+      setSeed(urlSeed);
+      setStatus("idle");
+    } catch { /* ignore malformed URLs */ }
   }, []);
 
   const clearTrail = useCallback(() => {
@@ -327,7 +373,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     setCompare({ rows, bestCost, bestSteps });
   };
 
-  const handleGenerateRandomMaze = () => {
+  const handleGenerateRandomMaze = (nextSeed) => {
     if (running) return;
     ++runIdRef.current;
     pausedRef.current = false;
@@ -337,7 +383,8 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     let size = Math.round(Number(mazeSize) || 21);
     if (size % 2 === 0) size += 1;
     size = Math.min(31, Math.max(5, size));
-    const newMaze = generateRandomMaze(size, size, loops);
+    const useSeed = nextSeed !== undefined ? nextSeed : (seed === "" ? randomSeed() : seed);
+    const newMaze = generateRandomMaze(size, size, loops, useSeed, generator);
     setCurrentMaze(newMaze);
     setExplored([]);
     setPath([]);
@@ -346,6 +393,28 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     setStatus("idle");
     setSolveMs(null);
     setCompare(null);
+    setSeed(String(useSeed));
+    writeUrl(String(useSeed), size, loops, generator);
+  };
+
+  const handleShare = async () => {
+    try {
+      const s = seed === "" ? randomSeed() : seed;
+      if (seed === "") {
+        setSeed(String(s));
+        writeUrl(String(s), mazeSize, loops, generator);
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.set("seed", String(s));
+      url.searchParams.set("size", String(mazeSize));
+      url.searchParams.set("loops", String(loops));
+      url.searchParams.set("gen", generator);
+      await navigator.clipboard.writeText(url.toString());
+      setShareNote("Link copied!");
+    } catch {
+      setShareNote("Copy failed");
+    }
+    setTimeout(() => setShareNote(""), 2000);
   };
 
   return (
@@ -484,11 +553,21 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           ⚔️ Compare
         </button>
         <button
-          onClick={handleGenerateRandomMaze}
+          onClick={() => handleGenerateRandomMaze()}
           disabled={running}
+          title={seed === "" ? "Generate a brand-new random maze" : "Regenerate this exact seed (same maze)"}
           className="rounded-full border-2 border-slate-900 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
         >
           New {mazeSize}×{mazeSize} maze
+        </button>
+        <button
+          onClick={() => handleGenerateRandomMaze(randomSeed())}
+          disabled={running}
+          title="Roll a fresh random seed"
+          aria-label="Random seed and new maze"
+          className="rounded-full border-2 border-slate-900 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          🎲
         </button>
         <button
           onClick={handleReset}
@@ -531,6 +610,45 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
             ))}
           </select>
         </label>
+        <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+          Carve
+          <select
+            value={generator}
+            onChange={(e) => setGenerator(e.target.value)}
+            disabled={running}
+            className="rounded-full border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-bold focus:outline-none disabled:opacity-50"
+            aria-label="Maze generator"
+            title="DFS = long corridors, Prim's = many short dead-ends (applies on New maze)"
+          >
+            {GENERATOR_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+          Seed
+          <input
+            value={seed}
+            onChange={(e) => setSeed(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !running) handleGenerateRandomMaze(e.target.value === "" ? randomSeed() : e.target.value); }}
+            disabled={running}
+            placeholder="random"
+            spellCheck={false}
+            className="w-24 rounded-full border-2 border-slate-900 bg-white px-2 py-1.5 font-mono text-sm font-bold focus:outline-none disabled:opacity-50"
+            aria-label="Maze seed"
+            title="Same seed + size + loops + carver = same maze. Enter regenerates."
+          />
+        </label>
+        <button
+          onClick={handleShare}
+          disabled={running}
+          title="Copy a link that reproduces this exact maze"
+          className="rounded-full border-2 border-slate-900 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          🔗 {shareNote || "Share"}
+        </button>
         <label className="ml-auto flex items-center gap-2 text-sm font-bold text-slate-600">
           Pace
           <select
