@@ -64,7 +64,12 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const [solveMs, setSolveMs] = useState(null);
   const [tool, setTool] = useState("wall"); // wall | erase | mud | water | start | goal
   const [compare, setCompare] = useState(null); // { rows: [{algo, steps, cost, explored, ms, ok}], bestCost, bestSteps } | null
+  const [paused, setPaused] = useState(false);
   const runIdRef = useRef(0);
+  const pausedRef = useRef(false);
+  const stepOnceRef = useRef(false);
+  const speedRef = useRef(speed);
+  useEffect(() => { speedRef.current = speed; }, [speed]);
   // Drag state: { kind: 'paint', value: 0|1 } | { kind: 'move-start' } | { kind: 'move-goal' } | null
   const dragRef = useRef(null);
 
@@ -77,14 +82,17 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
 
   const clearTrail = useCallback(() => {
     // Skip redundant resets during long paint drags (new [] would re-render).
-    if (explored.length === 0 && path.length === 0 && status === "idle" && solveMs === null && compare === null) return;
+    if (explored.length === 0 && path.length === 0 && status === "idle" && solveMs === null && compare === null && !paused) return;
     ++runIdRef.current;
+    pausedRef.current = false;
+    stepOnceRef.current = false;
+    setPaused(false);
     setExplored([]);
     setPath([]);
     setStatus("idle");
     setSolveMs(null);
     setCompare(null);
-  }, [explored.length, path.length, status, solveMs, compare, setExplored, setPath]);
+  }, [explored.length, path.length, status, solveMs, compare, paused, setExplored, setPath]);
 
   const paintCell = useCallback((r, c, value) => {
     setCurrentMaze((prev) => {
@@ -159,28 +167,58 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   // Batched animation: one setState per chunk. runId cancels stale runs.
   // Frame-budgeted: caps re-renders to ~80 for explored / ~40 for path so a
   // 31x31 maze doesn't do 900 setStates + 900 full-grid renders.
-  const animateArray = async (arr, setter, delay, chunkSize, runId, maxFrames = 80) => {
+  // Pause-aware: waits while pausedRef is set (Step advances one chunk via
+  // stepOnceRef). Delay + chunk read speedRef live, so Pace applies mid-race.
+  const animateArray = async (arr, setter, runId, maxFrames = 80, baseDelay = 40) => {
     if (arr.length === 0) {
       setter([]);
       return true;
     }
-    const effectiveChunk = Math.max(1, chunkSize, Math.ceil(arr.length / maxFrames));
+    const minChunk = Math.ceil(arr.length / maxFrames);
     setter([]);
-    let i = effectiveChunk;
-    for (; i < arr.length; i += effectiveChunk) {
+    let i = 0;
+    while (i < arr.length) {
       if (runIdRef.current !== runId) return false;
-      setter(arr.slice(0, i));
-      await sleep(delay);
+      // Pause gate (checked before every chunk, including the first).
+      while (pausedRef.current && !stepOnceRef.current) {
+        if (runIdRef.current !== runId) return false;
+        await sleep(50);
+      }
+      stepOnceRef.current = false;
+      if (runIdRef.current !== runId) return false;
+      const spd = speedRef.current || 1;
+      const baseChunk = spd >= 2 ? Math.ceil(spd * 2) : 1;
+      const effectiveChunk = Math.max(1, baseChunk, minChunk);
+      i = Math.min(arr.length, (i === 0 ? effectiveChunk : i + effectiveChunk));
+      // Avoid an extra render when the final chunk lands exactly on length:
+      // transfer ownership of the solver array instead of copying.
+      setter(i === arr.length && (arr.length % effectiveChunk !== 0 || i !== effectiveChunk) ? arr : arr.slice(0, i));
+      if (i >= arr.length) break;
+      await sleep(Math.max(4, Math.round(baseDelay / spd)));
     }
     if (runIdRef.current !== runId) return false;
-    // Transfer ownership of the solver array — no extra copy.
-    setter(i === arr.length ? arr.slice(0, i) : arr);
     return true;
+  };
+
+  const handlePauseToggle = () => {
+    if (!running) return;
+    const next = !pausedRef.current;
+    pausedRef.current = next;
+    stepOnceRef.current = false;
+    setPaused(next);
+  };
+
+  const handleStep = () => {
+    if (!running || !pausedRef.current) return;
+    stepOnceRef.current = true;
   };
 
   const runAlgorithm = async () => {
     if (running) return;
     const runId = ++runIdRef.current;
+    pausedRef.current = false;
+    stepOnceRef.current = false;
+    setPaused(false);
     setRunning(true);
     setStatus("running");
     setSolveMs(null);
@@ -212,17 +250,13 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           throw new Error("Invalid algorithm");
       }
       setSolveMs(Math.round(performance.now() - t0));
-      const exploredDelay = Math.max(4, Math.round(40 / speed));
-      const pathDelay = Math.max(4, Math.round(60 / speed));
-      const chunkSize = speed >= 2 ? Math.ceil(speed * 2) : 1;
-      const finished = await animateArray(result.explored, setExplored, exploredDelay, chunkSize, runId, 80);
+      const finished = await animateArray(result.explored, setExplored, runId, 80, 40);
       if (!finished) {
         setStatus("cancelled");
         return;
       }
       if (result.solutionPath) {
-        const pathChunk = Math.max(1, Math.floor(chunkSize / 2));
-        const pathFinished = await animateArray(result.solutionPath, setPath, pathDelay, pathChunk, runId, 40);
+        const pathFinished = await animateArray(result.solutionPath, setPath, runId, 40, 60);
         if (!pathFinished) {
           setStatus("cancelled");
           return;
@@ -235,12 +269,20 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
       console.error("Algorithm error:", error);
       if (runIdRef.current === runId) setStatus("error");
     } finally {
-      if (runIdRef.current === runId) setRunning(false);
+      if (runIdRef.current === runId) {
+        pausedRef.current = false;
+        stepOnceRef.current = false;
+        setPaused(false);
+        setRunning(false);
+      }
     }
   };
 
   const handleReset = () => {
     ++runIdRef.current;
+    pausedRef.current = false;
+    stepOnceRef.current = false;
+    setPaused(false);
     setExplored([]);
     setPath([]);
     setStatus("idle");
@@ -288,6 +330,9 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const handleGenerateRandomMaze = () => {
     if (running) return;
     ++runIdRef.current;
+    pausedRef.current = false;
+    stepOnceRef.current = false;
+    setPaused(false);
     // Clamp to 5..31 and force odd so the carver always gets valid dims
     let size = Math.round(Number(mazeSize) || 21);
     if (size % 2 === 0) size += 1;
@@ -311,6 +356,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           <p>
             {algorithm} is racing!
             <span className="text-slate-600"> — {explored.length} tiles sniffed…</span>
+            {paused && <span className="ml-2 rounded-full border border-slate-900 bg-white px-2 py-0.5 text-xs font-black">PAUSED — Resume or Step ↓</span>}
           </p>
         )}
         {status === "done" && (
@@ -410,6 +456,25 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
         >
           {running ? "Racing…" : "GO!"}
         </button>
+        {running && (
+          <>
+            <button
+              onClick={handlePauseToggle}
+              aria-pressed={paused}
+              className={`rounded-full border-2 border-slate-900 px-4 py-2 text-sm font-black shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 ${paused ? "bg-emerald-300 text-slate-900" : "bg-amber-300 text-slate-900"}`}
+            >
+              {paused ? "▶ Resume" : "⏸ Pause"}
+            </button>
+            <button
+              onClick={handleStep}
+              disabled={!paused}
+              title="Advance one animation chunk while paused"
+              className="rounded-full border-2 border-slate-900 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              ⏭ Step
+            </button>
+          </>
+        )}
         <button
           onClick={handleCompareAll}
           disabled={running}
@@ -427,10 +492,11 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
         </button>
         <button
           onClick={handleReset}
-          disabled={running && explored.length === 0 && path.length === 0}
+          disabled={!running && !paused && explored.length === 0 && path.length === 0}
+          title={running ? "Stop the race and clear the trail" : "Clear the trail"}
           className="rounded-full px-3 py-2 text-sm font-black text-slate-500 transition-colors hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Reset
+          {running ? "⏹ Stop" : "Reset"}
         </button>
         <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
           Size
@@ -470,7 +536,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           <select
             value={speed}
             onChange={(e) => setSpeed(Number(e.target.value))}
-            disabled={running}
+            title="Applies instantly, even mid-race"
             className="rounded-full border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-bold focus:outline-none disabled:opacity-50"
           >
             {SPEED_OPTIONS.map((opt) => (
