@@ -63,6 +63,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const [status, setStatus] = useState("idle"); // idle | running | done | no-path | error | cancelled
   const [solveMs, setSolveMs] = useState(null);
   const [tool, setTool] = useState("wall"); // wall | erase | mud | water | start | goal
+  const [compare, setCompare] = useState(null); // { rows: [{algo, steps, cost, explored, ms, ok}], bestCost, bestSteps } | null
   const runIdRef = useRef(0);
   // Drag state: { kind: 'paint', value: 0|1 } | { kind: 'move-start' } | { kind: 'move-goal' } | null
   const dragRef = useRef(null);
@@ -76,13 +77,14 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
 
   const clearTrail = useCallback(() => {
     // Skip redundant resets during long paint drags (new [] would re-render).
-    if (explored.length === 0 && path.length === 0 && status === "idle" && solveMs === null) return;
+    if (explored.length === 0 && path.length === 0 && status === "idle" && solveMs === null && compare === null) return;
     ++runIdRef.current;
     setExplored([]);
     setPath([]);
     setStatus("idle");
     setSolveMs(null);
-  }, [explored.length, path.length, status, solveMs, setExplored, setPath]);
+    setCompare(null);
+  }, [explored.length, path.length, status, solveMs, compare, setExplored, setPath]);
 
   const paintCell = useCallback((r, c, value) => {
     setCurrentMaze((prev) => {
@@ -243,7 +245,44 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     setPath([]);
     setStatus("idle");
     setSolveMs(null);
+    setCompare(null);
     setRunning(false);
+  };
+
+  const handleCompareAll = () => {
+    if (running) return;
+    const racers = [
+      ["BFS", solveMazeBFS],
+      ["DFS", solveMazeDFS],
+      ["A*", solveMazeAStar],
+      ["Dijkstra", solveMazeDijkstra],
+      ["Greedy", solveMazeGreedy],
+      ["Bi-BFS", solveMazeBidirectionalBFS],
+    ];
+    const rows = racers.map(([algo, fn]) => {
+      try {
+        const t0 = performance.now();
+        const result = fn(currentMaze, currentStart, currentGoal);
+        const ms = Math.max(0, Math.round((performance.now() - t0) * 10) / 10);
+        if (!result.solutionPath) {
+          return { algo, steps: null, cost: null, explored: result.explored.length, ms, ok: false };
+        }
+        return {
+          algo,
+          steps: result.solutionPath.length,
+          cost: result.cost ?? pathCost(currentMaze, result.solutionPath),
+          explored: result.explored.length,
+          ms,
+          ok: true,
+        };
+      } catch {
+        return { algo, steps: null, cost: null, explored: 0, ms: 0, ok: false };
+      }
+    });
+    const okRows = rows.filter((r) => r.ok);
+    const bestCost = okRows.length ? Math.min(...okRows.map((r) => r.cost)) : null;
+    const bestSteps = okRows.length ? Math.min(...okRows.map((r) => r.steps)) : null;
+    setCompare({ rows, bestCost, bestSteps });
   };
 
   const handleGenerateRandomMaze = () => {
@@ -261,6 +300,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     setCurrentGoal([size - 2, size - 2]);
     setStatus("idle");
     setSolveMs(null);
+    setCompare(null);
   };
 
   return (
@@ -371,6 +411,14 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           {running ? "Racing…" : "GO!"}
         </button>
         <button
+          onClick={handleCompareAll}
+          disabled={running}
+          title="Run all 6 algorithms instantly on this exact maze (no animation)"
+          className="rounded-full border-2 border-slate-900 bg-violet-500 px-4 py-2 text-sm font-black text-white shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          ⚔️ Compare
+        </button>
+        <button
           onClick={handleGenerateRandomMaze}
           disabled={running}
           className="rounded-full border-2 border-slate-900 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
@@ -433,6 +481,54 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           </select>
         </label>
       </div>
+
+      {/* Compare-all results (instant, same maze — no animation) */}
+      {compare && (
+        <div className="border-t-2 border-slate-900 bg-violet-50 px-5 py-3 rounded-b-3xl">
+          <div className="mb-2 flex items-center gap-2">
+            <p className="text-sm font-black">Same maze, all racers</p>
+            <button
+              onClick={() => setCompare(null)}
+              className="ml-auto rounded-full px-2 py-1 text-xs font-black text-slate-500 hover:text-slate-900"
+              aria-label="Clear comparison"
+            >
+              ✕ Clear
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-300 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                  <th className="py-1 pr-2">Racer</th>
+                  <th className="py-1 pr-2 text-right">Steps</th>
+                  <th className="py-1 pr-2 text-right">Cost</th>
+                  <th className="py-1 pr-2 text-right">Sniffed</th>
+                  <th className="py-1 text-right">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {compare.rows.map((r) => {
+                  const cheapest = r.ok && r.cost === compare.bestCost;
+                  return (
+                    <tr key={r.algo} className={`border-b border-slate-200 last:border-0 ${cheapest ? "bg-emerald-100/70 font-black" : ""}`}>
+                      <td className="py-1 pr-2 font-mono font-black">
+                        {r.algo} {cheapest ? "⭐" : ""} {r.algo === algorithm ? "(you)" : ""}
+                      </td>
+                      <td className="py-1 pr-2 text-right font-mono">{r.ok ? r.steps : "—"}</td>
+                      <td className="py-1 pr-2 text-right font-mono">{r.ok ? r.cost : "—"}</td>
+                      <td className="py-1 pr-2 text-right font-mono">{r.explored}</td>
+                      <td className="py-1 text-right font-mono">{r.ms} ms</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-1 text-[11px] font-bold text-slate-500">
+            ⭐ cheapest cost (Dijkstra/A* guarantee it) · fewest steps {compare.bestSteps ?? "—"} · mud ×5, water ×10
+          </p>
+        </div>
+      )}
     </div>
   );
 };
