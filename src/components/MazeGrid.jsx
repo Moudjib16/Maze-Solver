@@ -13,6 +13,12 @@ const SPEED_OPTIONS = [
 
 const MAZE_SIZES = [11, 15, 21, 25, 31];
 
+const LOOP_OPTIONS = [
+  { label: "Classic", value: 0 },
+  { label: "Loopy", value: 0.12 },
+  { label: "Wild", value: 0.3 },
+];
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Chunky arcade cells. Start/goal show a letter.
@@ -40,6 +46,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const [currentGoal, setCurrentGoal] = useState(defaultGoal);
   const [speed, setSpeed] = useState(1);
   const [mazeSize, setMazeSize] = useState(15);
+  const [loops, setLoops] = useState(0);
   const [status, setStatus] = useState("idle"); // idle | running | done | no-path | error | cancelled
   const [solveMs, setSolveMs] = useState(null);
   const runIdRef = useRef(0);
@@ -130,7 +137,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
     let size = Math.round(Number(mazeSize) || 21);
     if (size % 2 === 0) size += 1;
     size = Math.min(31, Math.max(5, size));
-    const newMaze = generateRandomMaze(size, size);
+    const newMaze = generateRandomMaze(size, size, loops);
     setCurrentMaze(newMaze);
     setExplored([]);
     setPath([]);
@@ -242,6 +249,23 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
             {MAZE_SIZES.map((size) => (
               <option key={size} value={size}>
                 {size}×{size}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+          Loops
+          <select
+            value={loops}
+            onChange={(e) => setLoops(Number(e.target.value))}
+            disabled={running}
+            className="rounded-full border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-bold focus:outline-none disabled:opacity-50"
+            aria-label="Extra loops"
+            title="Add loops for alternate routes (applies on New maze)"
+          >
+            {LOOP_OPTIONS.map((opt) => (
+              <option key={opt.label} value={opt.value}>
+                {opt.label}
               </option>
             ))}
           </select>

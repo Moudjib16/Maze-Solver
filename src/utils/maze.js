@@ -55,7 +55,7 @@ export const start = [1, 1];
 export const goal = [numRows - 2, numCols - 2];
 
 // In src/utils/maze.js
-export function generateRandomMaze(rows, cols) {
+export function generateRandomMaze(rows, cols, loopRatio = 0) {
   // Ensure rows and cols are odd numbers for proper maze generation
   if (rows % 2 === 0) rows++;
   if (cols % 2 === 0) cols++;
@@ -77,13 +77,37 @@ export function generateRandomMaze(rows, cols) {
     }
   }
 
-  // Start carving from a random odd cell
-  const startRow = Math.floor(Math.random() * (rows / 2)) * 2 + 1;
-  const startCol = Math.floor(Math.random() * (cols / 2)) * 2 + 1;
+  // Start carving from a random odd cell (clamped in-bounds)
+  const startRow = Math.floor(Math.random() * Math.floor(rows / 2)) * 2 + 1;
+  const startCol = Math.floor(Math.random() * Math.floor(cols / 2)) * 2 + 1;
   carve(startRow, startCol);
 
   // Set start and goal explicitly if needed
   maze[1][1] = 0;
   maze[rows - 2][cols - 2] = 0;
+
+  // Braid pass: knock down some dead-end walls to create loops.
+  // Only removes walls, so the maze stays solvable and start/goal stay open.
+  if (loopRatio > 0) {
+    const candidates = [];
+    for (let r = 1; r < rows - 1; r++) {
+      for (let c = 1; c < cols - 1; c++) {
+        if (maze[r][c] !== 1) continue;
+        const ns = maze[r - 1][c] === 0 && maze[r + 1][c] === 0;
+        const ew = maze[r][c - 1] === 0 && maze[r][c + 1] === 0;
+        // Exactly one open opposite pair: clean single loop, no big clearings
+        if ((ns ? 1 : 0) + (ew ? 1 : 0) === 1) candidates.push([r, c]);
+      }
+    }
+    // Shuffle and remove a fraction of candidates
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    const removeCount = Math.floor(candidates.length * Math.min(1, Math.max(0, loopRatio)));
+    for (let i = 0; i < removeCount; i++) {
+      maze[candidates[i][0]][candidates[i][1]] = 0;
+    }
+  }
   return maze;
 }
