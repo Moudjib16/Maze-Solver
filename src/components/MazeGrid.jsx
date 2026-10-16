@@ -11,6 +11,8 @@ const SPEED_OPTIONS = [
   { label: "Zoom 4x", value: 4 },
 ];
 
+const MAZE_SIZES = [11, 15, 21, 25, 31];
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Chunky arcade cells. Start/goal show a letter.
@@ -37,6 +39,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const [currentStart, setCurrentStart] = useState(defaultStart);
   const [currentGoal, setCurrentGoal] = useState(defaultGoal);
   const [speed, setSpeed] = useState(1);
+  const [mazeSize, setMazeSize] = useState(15);
   const [status, setStatus] = useState("idle"); // idle | running | done | no-path | error | cancelled
   const [solveMs, setSolveMs] = useState(null);
   const runIdRef = useRef(0);
@@ -123,14 +126,16 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const handleGenerateRandomMaze = () => {
     if (running) return;
     ++runIdRef.current;
-    const rows = 21;
-    const colCount = 21;
-    const newMaze = generateRandomMaze(rows, colCount);
+    // Clamp to 5..31 and force odd so the carver always gets valid dims
+    let size = Math.round(Number(mazeSize) || 21);
+    if (size % 2 === 0) size += 1;
+    size = Math.min(31, Math.max(5, size));
+    const newMaze = generateRandomMaze(size, size);
     setCurrentMaze(newMaze);
     setExplored([]);
     setPath([]);
     setCurrentStart([1, 1]);
-    setCurrentGoal([rows - 2, colCount - 2]);
+    setCurrentGoal([size - 2, size - 2]);
     setStatus("idle");
     setSolveMs(null);
   };
@@ -216,7 +221,7 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
           disabled={running}
           className="rounded-full border-2 border-slate-900 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-[2px_2px_0_0_#0f172a] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          New maze
+          New {mazeSize}×{mazeSize} maze
         </button>
         <button
           onClick={handleReset}
@@ -225,6 +230,22 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
         >
           Reset
         </button>
+        <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+          Size
+          <select
+            value={mazeSize}
+            onChange={(e) => setMazeSize(Number(e.target.value))}
+            disabled={running}
+            className="rounded-full border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-bold focus:outline-none disabled:opacity-50"
+            aria-label="Maze size"
+          >
+            {MAZE_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size}×{size}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="ml-auto flex items-center gap-2 text-sm font-bold text-slate-600">
           Pace
           <select
