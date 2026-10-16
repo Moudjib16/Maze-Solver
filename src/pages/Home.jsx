@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import { FaGithub, FaPlay, FaBook, FaRoute, FaCompass, FaStopwatch } from "react-icons/fa";
-import gif from "../../public/videos/ezgif.com-video-to-gif-converter.gif";
+import { generateRandomMaze } from "../utils/maze";
+import { solveMazeBFS } from "../algorithms/bfs";
 
 const RACERS = [
   { name: "BFS", color: "bg-sky-400", card: "border-sky-500 bg-sky-50", title: "The Perfectionist", text: "Checks every corridor level by level. Always finds the shortest way out.", stat: "O(V + E) · shortest" },
@@ -9,7 +11,7 @@ const RACERS = [
 ];
 
 const STEPS = [
-  { icon: <FaCompass />, bg: "bg-emerald-400", title: "Build a labyrinth", text: "Start with the cozy 10×10 or roll a wild random 21×21 maze." },
+  { icon: <FaCompass />, bg: "bg-emerald-400", title: "Build a labyrinth", text: "Start with the cozy 15×15 or roll a wild random maze up to 31×31." },
   { icon: <FaRoute />, bg: "bg-sky-400", title: "Pick your racer", text: "Choose BFS, DFS, or A* and dial the speed from chill to zoom." },
   { icon: <FaStopwatch />, bg: "bg-amber-400", title: "Race and compare", text: "Watch the explored trail fill in, then check path length and solve time." },
 ];
@@ -78,7 +80,13 @@ export default function Home() {
         {/* Demo */}
         <section className="animate-pop-in overflow-hidden rounded-3xl border-2 border-slate-900 bg-white shadow-[4px_4px_0_0_#0f172a]">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-slate-900 bg-violet-100 px-5 py-3">
-            <p className="text-sm font-extrabold">Live replay — BFS escaping a random maze</p>
+            <p className="flex items-center gap-2 text-sm font-extrabold">
+              Live demo — BFS escaping a fresh maze
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-900 bg-emerald-300 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest">
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-slate-900" />
+                Auto-play
+              </span>
+            </p>
             <div className="flex flex-wrap gap-2">
               {LEGEND.map((item) => (
                 <span key={item.label} className="inline-flex items-center gap-1.5 rounded-full border border-slate-900 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700">
@@ -88,12 +96,7 @@ export default function Home() {
               ))}
             </div>
           </div>
-          <img
-            src={gif}
-            alt="Maze solving visualization"
-            className="mx-auto block max-h-[480px] w-auto object-contain p-6"
-            loading="lazy"
-          />
+          <DemoMaze />
         </section>
 
         {/* Racers */}
@@ -153,6 +156,85 @@ export default function Home() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+// Auto-playing BFS demo rendered with the same arcade palette as the solver,
+// so the home page always matches the site style (no more stale GIF).
+function DemoMaze() {
+  const maze = useMemo(() => generateRandomMaze(15, 15), []);
+  const start = [1, 1];
+  const goal = [13, 13];
+  const result = useMemo(() => solveMazeBFS(maze, start, goal), [maze]);
+  const explored = result.explored;
+  const solution = result.solutionPath ?? [];
+  const [tick, setTick] = useState(0);
+
+  const GAP = 10; // pause between exploration and path phases
+  const HOLD = 60; // hold the finished maze before looping
+  const total = explored.length + GAP + solution.length + HOLD;
+
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setTick(total);
+      return;
+    }
+    const id = setInterval(() => setTick((t) => (t + 1) % (total + 1)), 45);
+    return () => clearInterval(id);
+  }, [total]);
+
+  const exploredCount = Math.min(tick, explored.length);
+  const pathCount = Math.max(0, Math.min(tick - explored.length - GAP, solution.length));
+  const done = tick >= explored.length + GAP + solution.length;
+
+  const exploredSet = useMemo(
+    () => new Set(explored.slice(0, exploredCount).map(([r, c]) => `${r},${c}`)),
+    [explored, exploredCount]
+  );
+  const pathSet = useMemo(
+    () => new Set(solution.slice(0, pathCount).map(([r, c]) => `${r},${c}`)),
+    [solution, pathCount]
+  );
+
+  return (
+    <div className="px-5 py-5">
+      <div
+        className="playful-dots grid w-full gap-[3px] rounded-2xl border-2 border-slate-900 bg-violet-100 p-2.5"
+        style={{ gridTemplateColumns: "repeat(15, minmax(0, 1fr))", maxWidth: "420px", margin: "0 auto" }}
+        role="img"
+        aria-label={done ? `Demo finished: BFS found a ${solution.length}-step path` : "Demo: BFS exploring a maze"}
+      >
+        {maze.map((row, r) =>
+          row.map((cell, c) => {
+            const isStart = r === start[0] && c === start[1];
+            const isGoal = r === goal[0] && c === goal[1];
+            const key = `${r},${c}`;
+            let cls = "bg-white border-slate-300";
+            let label = null;
+            if (cell === 1) cls = "bg-slate-900 border-slate-900";
+            else if (isStart) { cls = "bg-sky-500 border-slate-900"; label = "S"; }
+            else if (isGoal) { cls = "bg-rose-500 border-slate-900"; label = "G"; }
+            else if (pathSet.has(key)) cls = "bg-emerald-400 border-slate-900";
+            else if (exploredSet.has(key)) cls = "bg-amber-200 border-amber-300";
+            return (
+              <div
+                key={`${r}-${c}`}
+                className={`flex aspect-square w-full items-center justify-center rounded-[4px] border text-[8px] font-black ${cls}`}
+              >
+                {label && <span className="text-slate-900">{label}</span>}
+              </div>
+            );
+          })
+        )}
+      </div>
+      <p className="mx-auto mt-3 max-w-[420px] text-center text-xs font-bold text-slate-500" aria-live="polite">
+        {done ? (
+          <>BFS escaped in {solution.length} steps — a fresh maze every visit. <Link to="/maze" className="text-violet-700 underline">Try it yourself</Link></>
+        ) : (
+          <>BFS is sniffing around… {exploredCount}/{explored.length} tiles</>
+        )}
+      </p>
     </div>
   );
 }
