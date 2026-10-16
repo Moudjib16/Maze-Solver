@@ -303,10 +303,10 @@ export default function Home() {
     </motion.div>
     <motion.div whileHover={{ scale: 1.1 }}>
       <Link 
-        to="/blog" 
+        to="/maze" 
         className="hover:text-blue-400 transition-colors"
       >
-        Blog
+        Maze Solver
       </Link>
     </motion.div>
     <motion.div whileHover={{ scale: 1.1 }}>

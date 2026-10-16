@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FaGithub, FaInstagram, FaFacebook, FaDiscord } from 'react-icons/fa';
+import { FaGithub, FaInstagram, FaDiscord } from 'react-icons/fa';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -15,6 +15,7 @@ export default function Contact() {
   const handleSubmit = (e) => {
     e.preventDefault();
     alert('Message sent successfully!');
+    setFormData({ name: '', email: '', message: '' });
   };
 
   return (
