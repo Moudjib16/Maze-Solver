@@ -1,5 +1,3 @@
-import { numRows, numCols } from "../utils/maze";
-
 // Helper function to get neighbors (ignores weights)
 function getNeighbors([row, col], maze) {
   const neighbors = [];
@@ -11,7 +9,7 @@ function getNeighbors([row, col], maze) {
   ];
   for (let [dr, dc] of directions) {
     const r = row + dr, c = col + dc;
-    if (r >= 0 && r < numRows && c >= 0 && c < numCols && maze[r][c] === 0) {
+    if (r >= 0 && r < maze.length && c >= 0 && c < maze[0].length && maze[r][c] === 0) {
       neighbors.push([r, c]);
     }
   }
