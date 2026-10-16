@@ -36,7 +36,6 @@ const MazeCell = React.memo(({ isWall, isStart, isGoal, isExplored, isPath }) =>
   return (
     <div
       className={`flex aspect-square w-full items-center justify-center rounded-md border-2 text-[10px] font-black text-white transition-colors duration-150 ${cls}`}
-      style={label ? {} : undefined}
     >
       {label && <span className="text-slate-900">{label}</span>}
     </div>
@@ -60,15 +59,24 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
   const cols = currentMaze[0].length;
 
   // Batched animation: one setState per chunk. runId cancels stale runs.
-  const animateArray = async (arr, setter, delay, chunkSize, runId) => {
+  // Frame-budgeted: caps re-renders to ~80 for explored / ~40 for path so a
+  // 31x31 maze doesn't do 900 setStates + 900 full-grid renders.
+  const animateArray = async (arr, setter, delay, chunkSize, runId, maxFrames = 80) => {
+    if (arr.length === 0) {
+      setter([]);
+      return true;
+    }
+    const effectiveChunk = Math.max(1, chunkSize, Math.ceil(arr.length / maxFrames));
     setter([]);
-    for (let i = chunkSize; i <= arr.length; i += chunkSize) {
+    let i = effectiveChunk;
+    for (; i < arr.length; i += effectiveChunk) {
       if (runIdRef.current !== runId) return false;
       setter(arr.slice(0, i));
       await sleep(delay);
     }
     if (runIdRef.current !== runId) return false;
-    setter([...arr]);
+    // Transfer ownership of the solver array — no extra copy.
+    setter(i === arr.length ? arr.slice(0, i) : arr);
     return true;
   };
 
@@ -109,14 +117,14 @@ const MazeGrid = ({ algorithm, explored, path, running, setExplored, setPath, se
       const exploredDelay = Math.max(4, Math.round(40 / speed));
       const pathDelay = Math.max(4, Math.round(60 / speed));
       const chunkSize = speed >= 2 ? Math.ceil(speed * 2) : 1;
-      const finished = await animateArray(result.explored, setExplored, exploredDelay, chunkSize, runId);
+      const finished = await animateArray(result.explored, setExplored, exploredDelay, chunkSize, runId, 80);
       if (!finished) {
         setStatus("cancelled");
         return;
       }
       if (result.solutionPath) {
         const pathChunk = Math.max(1, Math.floor(chunkSize / 2));
-        const pathFinished = await animateArray(result.solutionPath, setPath, pathDelay, pathChunk, runId);
+        const pathFinished = await animateArray(result.solutionPath, setPath, pathDelay, pathChunk, runId, 40);
         if (!pathFinished) {
           setStatus("cancelled");
           return;

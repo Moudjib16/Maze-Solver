@@ -169,9 +169,9 @@ function DemoMaze() {
   const maze = useMemo(() => generateRandomMaze(15, 15), []);
   const start = useMemo(() => [1, 1], []);
   const goal = useMemo(() => [maze.length - 2, maze[0].length - 2], [maze]);
-  const result = useMemo(() => solveMazeBFS(maze, start, goal), [maze]);
+  const result = useMemo(() => solveMazeBFS(maze, start, goal), [maze, start, goal]);
   const explored = result.explored;
-  const solution = result.solutionPath ?? [];
+  const solution = useMemo(() => result.solutionPath ?? [], [result]);
   const [tick, setTick] = useState(0);
 
   const GAP = 10; // pause between exploration and path phases
@@ -191,14 +191,18 @@ function DemoMaze() {
   const pathCount = Math.max(0, Math.min(tick - explored.length - GAP, solution.length));
   const done = tick >= explored.length + GAP + solution.length;
 
-  const exploredSet = useMemo(
-    () => new Set(explored.slice(0, exploredCount).map(([r, c]) => `${r},${c}`)),
-    [explored, exploredCount]
-  );
-  const pathSet = useMemo(
-    () => new Set(solution.slice(0, pathCount).map(([r, c]) => `${r},${c}`)),
-    [solution, pathCount]
-  );
+  // Rank maps: key -> visit order. Built once per maze, then per-tick render
+  // is O(1) lookups with zero Set/slice allocations.
+  const exploredRank = useMemo(() => {
+    const m = new Map();
+    for (let i = 0; i < explored.length; i++) m.set(`${explored[i][0]},${explored[i][1]}`, i);
+    return m;
+  }, [explored]);
+  const pathRank = useMemo(() => {
+    const m = new Map();
+    for (let i = 0; i < solution.length; i++) m.set(`${solution[i][0]},${solution[i][1]}`, i);
+    return m;
+  }, [solution]);
 
   return (
     <div className="px-5 py-5">
@@ -218,8 +222,8 @@ function DemoMaze() {
             if (cell === 1) cls = "bg-slate-900 border-slate-900";
             else if (isStart) { cls = "bg-sky-500 border-slate-900"; label = "S"; }
             else if (isGoal) { cls = "bg-rose-500 border-slate-900"; label = "G"; }
-            else if (pathSet.has(key)) cls = "bg-emerald-400 border-slate-900";
-            else if (exploredSet.has(key)) cls = "bg-amber-200 border-amber-300";
+            else if ((pathRank.get(key) ?? Infinity) < pathCount) cls = "bg-emerald-400 border-slate-900";
+            else if ((exploredRank.get(key) ?? Infinity) < exploredCount) cls = "bg-amber-200 border-amber-300";
             return (
               <div
                 key={`${r}-${c}`}
